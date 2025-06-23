@@ -1,28 +1,3 @@
-Posibles features a implementar:
---Indicar cuales fueron los cambios de elementos agregados en el esquematico y cuales fueron las partes en donde se eliminaron elementos, asi como en que partes estas se eliminaron
-
-Cambios que aun no se identifican al comparar el pdf 81 con el 73 1:
-
-Pagina 17, cambio en la parte de la resistencia R10636: es un error que posiblemente surge porque el error en la matriz obtenida de la imagen
-
-****Parece que no identifica bien los cambios de las letras que estan colocadas de forma vertical
-
-Issues:
---checar si se pueden descartar los cambios del texto en el margen
---checar si las hojas del pdf siempre tienen las mismas dimensiones para considerar como descartar los cambios marcados en el margen 
-
-para martes 8 de abril:
---el cambio de pdf no funciona si se hace despues de hacer click en un cambio
---ajustar layout de componentes
---quitar el menu de seleccion de archivos para que haya mas espacio
---implementar checkboxes de toggle de cambios para el usuario
-
-Excepciones de funcionamiento: 
--- el toggle individual de los circulos solo funciona cuando el zoom esta en 100%
--- el toggle completo solo funciona cuando se hace click en el pdf
-
-Pendientes:
-
---implementar division del pdf
---Pendiente: Al habilitar la rotacion simultanea: eliminar uno de los botones de rotacion y dejar solo uno
---Implementar subrayado cuando hay rotacion
+-- arreglar el subrayado horizontal
+--Colocar boton de reinicio/nueva comparacion
+--Arreglar colocacion horizontal de la marca de agua(si se guarda en el pdf pero no se aplica ese cambio al cargar el json)

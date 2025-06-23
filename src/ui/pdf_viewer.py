@@ -1,10 +1,11 @@
 import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QScrollArea, QSizePolicy, QListWidget, 
-                            QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem, QToolTip, QRubberBand, QFileDialog, QSlider, QDialog)
+                            QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem, QToolTip, QRubberBand, QFileDialog, QSlider, QDialog, QMessageBox)
 from PyQt5.QtGui import QPixmap, QImage, QKeyEvent
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal, QEvent, QPoint, QRect, QSize
 from src.pdf_rotation import PDFRotationUIHandler
+#from src.pdf_rotation import PDFRotationUIHandler
 
 from math import sqrt
 
@@ -81,7 +82,7 @@ class ChangesListWidget(QWidget):
         self.changes_by_page = {}
         self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
         self.formatted_circles_by_page = {}
-        self.changes_description = [] #lsta con descripciones de los cambios
+        self.changes_description = {} #lsta con descripciones de los cambios
         self.init_ui()
     
     def init_ui(self):
@@ -103,7 +104,6 @@ class ChangesListWidget(QWidget):
     
     def update_changes_list(self, formatted_circles_by_page):
         """Actualiza la lista completa de cambios por página"""
-        print("Update changes list ------------------------------->")
         if not hasattr(self, 'changes_tree') or self.changes_tree is None:
             print("Error: changes_tree no está inicializado")
             return
@@ -121,10 +121,10 @@ class ChangesListWidget(QWidget):
 
         self.changes_tree.clear()
         self.changes_by_page = formatted_circles_by_page
-        
+
         # Crear un elemento en el árbol para cada página con cambios
         for page_num, changes in sorted(formatted_circles_by_page.items()):
-            self.changes_description = changes
+            self.changes_description[page_num] = changes
             if changes:
                 page_item = QTreeWidgetItem(self.changes_tree)
                 page_item.setText(0, f"Page {page_num + 1} ({len(changes)} differences)")
@@ -170,12 +170,13 @@ class ChangesListWidget(QWidget):
             if page_num in self.changes_by_page and change_idx < len(self.changes_by_page[page_num]):
                 change = self.changes_by_page[page_num][change_idx]
                 
+                print("Selected state: ",change["selected"])
+
                 # Si se hizo clic en la columna del checkbox, actualizar el estado
                 if column == 1:
                     is_checked = item.checkState(1) == 2
                     change["selected"] = is_checked
                     print("click en checkbox")
-                    print("Change_selected:", change, "-=-----------")
                     self.circle_selected.emit(page_num, change, is_checked)
                     self.update_annotations_sig.emit(page_num, self.formatted_circles_by_page[page_num])
                 else:
@@ -217,6 +218,7 @@ class ChangesListWidget(QWidget):
 class PDFViewer(QWidget):
     circle_clicked = pyqtSignal(int, dict,bool)  # Señal para comunicar clics
     update_annotations = pyqtSignal(int, list)  # Página, cambios
+    restart_signal = pyqtSignal()  # Restart app
 
     def __init__(self, title="PDF Viewer"):
         super(PDFViewer, self).__init__()
@@ -229,7 +231,7 @@ class PDFViewer(QWidget):
         self.changes_list_widget = None  # Inicializar a None
         self.original_document = None # para almacenal el pdf original
         self.showing_original = False # para mostrar el pdf anotado
-        self.formatted_circles_page = {}
+        self.formatted_circles_by_page = {}
         self.init_ui()
         self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
         self.page_label.setMouseTracking(True)  # También habilítalo para el label del PDF
@@ -241,11 +243,26 @@ class PDFViewer(QWidget):
         self.highlight_start = None  # Coordenada inicial del subrayado
         self.highlight_end = None  # Coordenada final del subrayado
         self.temp_highlight_annot = None  # Para almacenar la anotación temporal
+        self.highlights_by_page = {}
+        self.watermarks_by_page = {} #Alacenar las marcas de agua por pagina : {"path","opacity"}
     
     def init_ui(self):
         # Layout principal
         layout = QVBoxLayout(self)
         
+        #Boton de reinicio
+        if self.title == "Annotated PDF":
+            self.reload_button = QPushButton("Compare/Load new schematic")
+            restart_layout = QHBoxLayout()
+            
+            print("Button created------------------------------")
+            restart_layout.addWidget(self.reload_button, 1)
+            invisible_label = QLabel("")
+            restart_layout.addWidget(invisible_label, 5)
+            layout.addLayout(restart_layout)
+            
+            self.reload_button.clicked.connect(self.confirm_restart)
+
         # Título
         self.title_label = QLabel(self.title)
         self.title_label.setAlignment(Qt.AlignCenter)
@@ -306,9 +323,10 @@ class PDFViewer(QWidget):
         self.watermark_all_button = QPushButton("Watermark(all pages)")
         self.watermark_all_button.clicked.connect(self.select_watermark_for_all_pages)
 
+
         watermark_layout.addWidget(self.watermark_button)
         watermark_layout.addWidget(self.watermark_all_button)
-        
+
         layout.addWidget(self.title_label)
         layout.addWidget(self.scroll_area, 1)
         layout.addLayout(nav_layout)
@@ -320,8 +338,23 @@ class PDFViewer(QWidget):
             print("------------------------------------------------------------------------------------")
             self.changes_list_widget = ChangesListWidget(self)
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
-            self.changes_list_widget.circle_selected.connect(self.modify_annotations)
+            self.changes_list_widget.circle_selected.connect(self.modify_annotations) #modify annotations returns a list
             self.changes_list_widget.update_annotations_sig.connect(self.send_annotations)
+
+    def confirm_restart(self):
+        """Pide confirmación antes de emitir la señal de reinicio"""
+        confirm = QMessageBox.question(
+            self, 'Confirmar reinicio',
+            '¿Estás seguro que quieres reiniciar la aplicación?',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if confirm == QMessageBox.StandardButton.Yes:
+            self.restart_signal.emit()
+
+    def restart(self):
+        self.restart_signal.emit() 
 
     def send_annotations(self, page_num, updated_annotations):
         print("Printing annotations")
@@ -342,6 +375,8 @@ class PDFViewer(QWidget):
             if opacity_dialog.exec_() == QDialog.Accepted:
                 opacity = opacity_dialog.get_opacity()
                 self.apply_watermark_image(file_path, opacity)
+                self.watermarks_by_page[self.current_page] = {"path" : file_path, "opacity": opacity}
+
                 return True
         return False
         
@@ -398,6 +433,7 @@ class PDFViewer(QWidget):
             # Renderizar la página actualizada
             self.render_current_page()
             print(f"Marca de agua aplicada desde: {image_path} con opacidad {opacity:.1%}")
+            self.document_modified = True
             return True
         
         except Exception as e:
@@ -475,6 +511,7 @@ class PDFViewer(QWidget):
             # Renderizar la página actual
             self.render_current_page()
             print(f"Marca de agua aplicada a todas las páginas desde: {image_path} con opacidad {opacity:.1%}")
+            self.document_modified = True
             return True
         
         except Exception as e:
@@ -538,7 +575,6 @@ class PDFViewer(QWidget):
                     
                     doc_x = mouse_pos.x() * total_scale
                     doc_y = mouse_pos.y() * total_scale
-                    
                     # Verificar cada círculo en la página actual
                     for i, circle in enumerate(self.formatted_circles_by_page[self.current_page]):
                         # Calcular distancia entre el cursor y el centro del círculo
@@ -546,8 +582,7 @@ class PDFViewer(QWidget):
                         
                         # Si la distancia es menor o igual al radio, el cursor está sobre el círculo
                         if distance <= circle['radius']:
-                            print("i",i)
-                            tooltip_text = self.changes_list_widget.changes_description[i].get("description", f"Difference {i+1}")
+                            tooltip_text = self.changes_list_widget.changes_description[self.current_page][i].get("description", f"Difference {i+1}")
                             break
                 
                 QToolTip.showText(event.globalPos(), tooltip_text, self.page_label)
@@ -670,13 +705,13 @@ class PDFViewer(QWidget):
             x0, y0 = self.highlight_start_pdf
             x1, y1 = self.highlight_end_pdf
         elif current_rotation == 90:
-            x0, y0 = self.highlight_start_pdf[1], page_rect.width - self.highlight_end_pdf[0]
-            x1, y1 = self.highlight_end_pdf[1], page_rect.width - self.highlight_start_pdf[0]
+            x0, y0 = self.highlight_start_pdf[1], page_rect.width - self.highlight_end_pdf[0] #arreglar esta coordenada x
+            x1, y1 = self.highlight_end_pdf[1], page_rect.width - self.highlight_start_pdf[0] 
         elif current_rotation == 180:
             x0, y0 = page_rect.width - self.highlight_end_pdf[0], page_rect.height - self.highlight_end_pdf[1]
             x1, y1 = page_rect.width - self.highlight_start_pdf[0], page_rect.height - self.highlight_start_pdf[1]
         elif current_rotation == 270:
-            x0, y0 = page_rect.height - self.highlight_end_pdf[1], self.highlight_start_pdf[0]
+            x0, y0 = page_rect.height - self.highlight_end_pdf[1], self.highlight_start_pdf[0] #arreglar esta coordenada x
             x1, y1 = page_rect.height - self.highlight_start_pdf[1], self.highlight_end_pdf[0]
 
         print("x0",x0)
@@ -699,6 +734,21 @@ class PDFViewer(QWidget):
 
         # Crear rectángulo en coordenadas de PDF
         rect = fitz.Rect(pdf_x0, pdf_y0, pdf_x1, pdf_y1)
+
+        new_highlight = {}
+        #define dictionary
+        new_highlight['x0'] = rect[0]   
+        new_highlight['y0'] = rect[1]  
+        new_highlight['x1'] = rect[2]  
+        new_highlight['y1'] = rect[3]
+        
+        if self.current_page in self.highlights_by_page:  
+
+            self.highlights_by_page[self.current_page].append(new_highlight)
+            print("Anotation added: ",self.highlights_by_page[self.current_page][-1])
+        else:
+            self.highlights_by_page[self.current_page] = [new_highlight]
+            print("Anotation added: ",self.highlights_by_page[self.current_page])
         
         #print(f"Ventana maximizada: {is_maximized}, Offset aplicado: {offset_x}")
         print(f"Coords pantalla (ajustadas): ({x0}, {y0}) a ({x1}, {y1})")
@@ -724,6 +774,7 @@ class PDFViewer(QWidget):
         
         # Renderizar la página actualizada
         self.render_current_page()
+        self.document_modified = True
 
     def update_temp_highlight(self):
         """Actualiza el subrayado temporal mientras se arrastra el mouse"""
@@ -927,9 +978,6 @@ class PDFViewer(QWidget):
         if self.page_label.pixmap() is None:
             print("Error: No hay pixmap en page_label")
             return
-            
-        pixmap_width = self.page_label.pixmap().width()
-        pixmap_height = self.page_label.pixmap().height()
 
         # Calcular la posición del cambio en el pixmap con el zoom actual
         change_x = change['x']
@@ -946,11 +994,11 @@ class PDFViewer(QWidget):
         # Ajustar el scroll para centrar el cambio
         h_value = max(0, int(h_scroll*scroll_x-self.width()/2))
         v_value = max(0, int(v_scroll*scroll_y-self.height()/2))
-        
+
         # Limitar los valores de scroll a los máximos permitidos
         h_value = min(h_value, self.scroll_area.horizontalScrollBar().maximum())
         v_value = min(v_value, self.scroll_area.verticalScrollBar().maximum())
-        
+
         # Establecer los valores de scroll
         self.scroll_area.horizontalScrollBar().setValue(h_value)
         self.scroll_area.verticalScrollBar().setValue(v_value)
@@ -1033,6 +1081,7 @@ class PDFViewer(QWidget):
 
     def update_page_info(self):
         """Actualiza la información de página actual."""
+        print("Ejecutando update_page_info")
         if self.document:
             self.page_info.setText(f"Page {self.current_page + 1} of {self.document.page_count}")
             
@@ -1146,7 +1195,7 @@ class PDFViewer(QWidget):
         print("No se hizo clic en ningún círculo.")
         return None, None
 
-    def set_circles(self, circles_by_page, page_width, page_height):
+    def set_circles(self, circles_by_page, page_width, page_height, json_loaded = False):
         self.page_width = page_width
         self.page_height = page_height
 
@@ -1154,30 +1203,54 @@ class PDFViewer(QWidget):
         self.circles_by_page = circles_by_page
         self.formatted_circles_by_page = {}
 
-        for page, circles in circles_by_page.items():
-            # Primero formatear todos los círculos
-            formatted_circles = []
-            for circle in circles:
-                formatted_circles.append({
-                    "x": circle[0],
-                    "y": circle[1],
-                    "radius": circle[2],
-                    "selected": True,
-                })
-            
-            # Filtrar círculos usando el método 1 (filtrado por contenimiento completo)
-            filtered_circles = self.filter_contained_circles(formatted_circles)
-            self.formatted_circles_by_page[page] = filtered_circles
-            
-            print(f"Página {page}: {len(circles)} círculos originales, {len(self.formatted_circles_by_page[page])} después del filtrado")
+        if json_loaded: #cuando se cargan cambios del json
+            for page, circles in circles_by_page.items():
+                # Primero formatear todos los círculos
+                formatted_circles = []
+                for circle in circles:
+                    formatted_circles.append({
+                        "x": circle['x'],
+                        "y": circle['y'],
+                        "radius": circle['radius'],
+                        "selected": ['selected'],
+                    })
+                # Filtrar círculos usando el método 1 (filtrado por contenimiento completo)
+                filtered_circles = self.filter_contained_circles(formatted_circles)
+                self.formatted_circles_by_page[page] = filtered_circles
+
+            # Actualizar la lista de cambios si estamos en una página con cambios y si existe la lista
+            if self.has_changes_list() and self.current_page in self.formatted_circles_by_page:
+                self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
+
+            self.render_current_page()
+            self.update_page_info()
+            return self.formatted_circles_by_page
         
-        # Actualizar la lista de cambios si estamos en una página con cambios y si existe la lista
-        if self.has_changes_list() and self.current_page in self.formatted_circles_by_page:
-            print("formatted_circles",self.formatted_circles_by_page,">>>>>>>>>>>>>>>>>>>>>>>")
-            self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
+        else: #cuando se hace una comparacion
+            for page, circles in circles_by_page.items():
+                # Primero formatear todos los círculos
+                formatted_circles = []
+                for circle in circles:
+                    formatted_circles.append({
+                        "x": circle[0],
+                        "y": circle[1],
+                        "radius": circle[2],
+                        "selected": True,
+                    })
             
-        self.render_current_page()
-        self.update_page_info()
+                # Filtrar círculos usando el método 1 (filtrado por contenimiento completo)
+                filtered_circles = self.filter_contained_circles(formatted_circles)
+                self.formatted_circles_by_page[page] = filtered_circles
+        
+            # Actualizar la lista de cambios si estamos en una página con cambios y si existe la lista
+            if self.has_changes_list() and self.current_page in self.formatted_circles_by_page:
+                print("Atributo formatted_circles_by_page antes de update_changes_list",self.formatted_circles_by_page)
+                self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
+                print("Atributo formatted_circles_by_page despues de update_changes_list",self.formatted_circles_by_page)
+
+            self.render_current_page()
+            self.update_page_info()
+            return self.formatted_circles_by_page
         
     def filter_contained_circles(self, circles):
         """
@@ -1227,6 +1300,8 @@ class PDFViewer(QWidget):
             
             # Actualizar estado de los botones
             self.prev_button.setEnabled(True)
+            print("Prev button setted true")
+            print("Current page:", self.current_page)
             self.next_button.setEnabled(self.current_page < self.document.page_count - 1)
     
     def prev_page(self):

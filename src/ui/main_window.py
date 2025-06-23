@@ -2,18 +2,22 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                             QWidget, QPushButton, QFileDialog, QLabel, QCheckBox,
-                            QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup, QMenu, QToolBar, QAction, QMessageBox)
+                            QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup, QMenu, QToolBar, QAction, QMessageBox, QTabWidget, QSplitter)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
 from src.pdf_rotation import PDFRotationUIHandler, RotationDialog
 
 import fitz  # PyMuPDF - importante para la función toggle_circle_visibility
 
+from src.json_loader_ui import JsonLoaderUI
 from src.pdf_processor import PDFProcessor
 from src.image_comparator import ImageComparator
 from src.circle_detector import CircleDetector
 from src.pdf_annotator import PDFAnnotator
 from src.ui.pdf_viewer import PDFViewer, ChangesListWidget
+# Importar componentes de la aplicación
+
+RESTART_CODE = 1001  # Código especial para reinicio
 
 class WorkerThread(QThread):
     progress = pyqtSignal(int)
@@ -66,10 +70,6 @@ class WorkerThread(QThread):
 
             page_height = image_dim[0]
             page_width = image_dim[1]
-            
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>From find differences>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            print("page_width", page_width)
-            print("page_height", page_height)
 
             # Paso 4: Agrupar diferencias en círculos
             if diff_coords:
@@ -92,30 +92,72 @@ class WorkerThread(QThread):
         pdf_annotator.add_circle_annotations(source_pdf2, circles_by_page, self.output_path, dpi=self.dpi)
         
         # Guardar información de círculos para uso en la UI
-        pdf_annotator.save_circles_to_json(circles_by_page, f"{self.output_path}.json")
+        pdf_annotator.save_changes_to_json(self.pdf1, circles_by_page)
         
         self.progress.emit(100)
         self.finished.emit(self.output_path, circles_by_page)
-        
         #habilitar click event para descarte de circulos
-        
 
 class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("PDF Diff Tool")
-        self.setMinimumSize(1200, 800)
 
-        #Limpiar directorio temporal a inicio de la ejecucion
-        self.clean_temp_directory()
+    def __init__(self):
+        super(MainWindow, self).__init__()
+        self.setWindowTitle("PDF Comparator")
+        self.setGeometry(100, 100, 1200, 800)
         
-        print("Inicializando UI en MainWindow...")
-        self.init_ui()
-    
-    def init_ui(self):
-        # Crear layout principal
+        # Widget central
         central_widget = QWidget()
-        self.main_layout = QVBoxLayout(central_widget)
+        self.setCentralWidget(central_widget)
+        
+        # Layout principal
+        main_layout = QVBoxLayout(central_widget)
+        
+        # Pestañas principales
+        self.tabs = QTabWidget()
+        
+        # Pestaña de carga/guardado JSON
+        #self.json_tab = QWidget()
+        self.setup_json_tab()
+        #self.tabs.addTab(self.json_tab, "Cargar/Guardar Cambios")
+
+        # Pestaña de comparación
+        self.comparison_tab = QWidget()
+        self.setup_comparison_tab()
+        self.tabs.addTab(self.comparison_tab, "Comparar PDFs")
+        
+        # Agregar pestañas al layout principal
+        main_layout.addWidget(self.tabs)
+        # Conectar la señal de reinicio
+        self.annotated_viewer.restart_signal.connect(self.handle_restart)
+    
+    def handle_restart(self):
+        """Maneja la solicitud de reinicio, preguntando por guardar cambios"""
+        # Verificar si hay cambios no guardados
+        if self.annotated_viewer.document_modified or self.original_viewer.document_modified:
+            reply = QMessageBox.question(
+                self, 'Guardar cambios',
+                '¿Deseas guardar los cambios antes de reiniciar?',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Yes
+            )
+            
+            if reply == QMessageBox.StandardButton.Cancel:
+                return  # Cancelar el reinicio
+            elif reply == QMessageBox.StandardButton.Yes:
+                if self.annotated_viewer.document_modified:
+                    self.rotation_handler.save_document()  
+                else:
+                    self.rotation_original.save_document()  
+
+        # Reiniciar la aplicación
+        self.restart_application()
+    
+    def restart_application(self):
+        """Reinicia completamente la aplicación"""
+        QApplication.exit(RESTART_CODE)  # Definiremos RESTART_CODE más abajo
+    
+    def setup_comparison_tab(self):
+        self.main_layout = QVBoxLayout(self.comparison_tab)
         
         #Crear un widget contenedor para la configuracion
         self.config_container = QWidget()
@@ -129,6 +171,7 @@ class MainWindow(QMainWindow):
         # PDF original
         pdf1_layout = QHBoxLayout()
         self.pdf1_label = QLabel("Original PDF:")
+
         self.pdf1_path = QLabel("not selected")
         self.pdf1_button = QPushButton("Upload file")
         self.pdf1_button.clicked.connect(self.select_pdf1)
@@ -141,12 +184,18 @@ class MainWindow(QMainWindow):
         pdf2_layout = QHBoxLayout()
         self.pdf2_label = QLabel("Modified version:")
         self.pdf2_path = QLabel("not selected")
-        self.pdf2_button = QPushButton("Upload file")
+        self.pdf1_button = QPushButton("Upload file")
+        self.pdf1_button.clicked.connect(self.select_pdf1)
+        self.pdf2_button = QPushButton("Upload PDF")
         self.pdf2_button.clicked.connect(self.select_pdf2)
+
+        self.json_button = QPushButton("Upload JSON")
+        self.json_button.clicked.connect(self.load_json_file)
         
         pdf2_layout.addWidget(self.pdf2_label)
         pdf2_layout.addWidget(self.pdf2_path)
         pdf2_layout.addWidget(self.pdf2_button)
+        pdf2_layout.addWidget(self.json_button)
         
         # Guardar como
         save_layout = QHBoxLayout()
@@ -234,10 +283,15 @@ class MainWindow(QMainWindow):
         self.compare_button = QPushButton("Compare PDFs")
         self.compare_button.clicked.connect(self.start_comparison)
         self.compare_button.setEnabled(False)
+
+        self.apply_json_button = QPushButton("Apply JSON annotations")
+        self.apply_json_button.clicked.connect(self.json_loader_ui.apply_changes)
+        self.apply_json_button.setEnabled(False)
         
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         
+        action_layout.addWidget(self.apply_json_button)
         action_layout.addWidget(self.compare_button)
         action_layout.addWidget(self.progress_bar)
         
@@ -255,9 +309,11 @@ class MainWindow(QMainWindow):
 
         # Visor anotado (derecha)
         self.annotated_viewer = PDFViewer("Annotated PDF")
-        self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer, title = "Rotate Annotated PDF")
+        self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer, title = "Annotated PDF")
+        self.annotated_viewer.document_modified = False
 
-        self.rotation_original = PDFRotationUIHandler(self, self.original_viewer, self.rotation_handler, title = "Rotate Original PDF")
+        self.rotation_original = PDFRotationUIHandler(self, self.original_viewer, self.rotation_handler, title = "Original PDF")
+        self.original_viewer.document_modified = False
          
         # Contenedor del visor anotado con el checkbox de círculos
         self.annotated_container = QWidget()
@@ -306,8 +362,6 @@ class MainWindow(QMainWindow):
         self.main_layout.addLayout(self.config_layout, 1)
         self.main_layout.addLayout(self.view_layout, 4)
         
-        self.setCentralWidget(central_widget)
-        
         # Variables de estado
         self.pdf1_file = None
         self.pdf2_file = None
@@ -320,12 +374,66 @@ class MainWindow(QMainWindow):
         self.annotated_viewer.circle_clicked.connect(self.handle_circle_click)
         self.annotated_viewer.update_annotations.connect(self.update_annotations)
         self.annotated_viewer.set_clicks_enabled(False)  # inicialmente deshabilitado
+        
+        #connect signal to update circle changes
+        self.rotation_handler.save_doc_signal.connect(self.update_annotations_by_page_json)
+        self.rotation_original.save_doc_signal.connect(self.update_annotations_by_page_json)
+        self.json_loader_ui.add_changes_list.connect(self.comparison_finished)
 
         print("UI de MainWindow inicializada")
+        
+    def update_annotations_by_page_json(self, signal_update):
+        #hacer copia de los circulos identificados para el json 
+        if signal_update:
+            self.rotation_handler.rotator.changes_by_page = self.annotated_viewer.formatted_circles_by_page
+            self.rotation_handler.rotator.highlights_by_page = self.annotated_viewer.highlights_by_page
+            self.rotation_handler.rotator.watermarks_by_page = self.annotated_viewer.watermarks_by_page
 
-    def on_document_modified(self):
-        self.document_modified = True
+            print("Hihglights by page", self.rotation_handler.rotator.highlights_by_page)
+            print("Watermarks by page", self.rotation_handler.rotator.watermarks_by_page)
+
+    def setup_json_tab(self):
+        """Configura la pestaña de carga/guardado de JSON."""
+        
+        # Panel izquierdo: Visor de PDF
+        self.json_pdf_viewer = PDFViewer("Annotated PDF")
+        
+        # Panel derecho: Controles de JSON
+        json_control_widget = QWidget()
+        self.json_loader_ui = JsonLoaderUI(self.json_pdf_viewer)
+        
+        #actualizar cambios en formatted circles by page
+        self.json_loader_ui.json_loader.extracted_changes_signal.connect(self.update_extracted_circles)
+        self.json_loader_ui.update_changes_list_signal.connect(self.update_extracted_circles)
+        
+        # Configurar layout para el panel de control
+        json_control_layout = QVBoxLayout(json_control_widget)
     
+    def load_pdf_for_comparison(self, pdf1_path, pdf2_path):
+        """Carga dos PDFs para comparación."""
+        # Cargar PDFs en los visores
+        self.original_viewer.load_pdf(pdf1_path)
+        self.annotated_viewer.load_pdf(pdf2_path)
+        
+        # Cambiar a la pestaña de comparación
+        self.tabs.setCurrentIndex(0)
+    
+    def load_pdf_with_json(self, pdf_path, json_path):
+        """Carga un PDF con sus cambios desde un archivo JSON."""
+        # Esta función podría ser llamada desde fuera de la clase
+        self.json_loader_ui.pdf_path = pdf_path
+        self.json_loader_ui.json_path = json_path
+        self.json_loader_ui.update_load_status()
+        self.json_loader_ui.apply_changes()
+        
+        # Cambiar a la pestaña de JSON
+        self.tabs.setCurrentIndex(1)
+
+    def on_document_modified(self, doc_modified = ""):
+        if doc_modified == "Original PDF":
+            self.original_viewer.document_modified = True
+        else:
+            self.annotated_viewer.document_modified = True
         # Actualizar título o interfaz para reflejar los cambios
         self.update_ui_for_unsaved_changes()
 
@@ -353,14 +461,18 @@ class MainWindow(QMainWindow):
         """Maneja clics en círculos para actualizar anotaciones."""
         print(f"Círculo clickeado en página {page_num}: {clicked_circle}")
         
-        # Modificación del círculo si es necesario o actualización
+        # Modificación del círculo si es necesario o actualización (self.updated_annotations --> list of changes in the page)
         self.updated_annotations = self.annotated_viewer.modify_annotations(page_num, clicked_circle, new_state)
         
         # Llamar a update_annotations para reflejar cambios
         self.update_annotations(page_num, self.updated_annotations)
     
+    def update_extracted_circles(self, changes_by_page): 
+        self.annotated_viewer.formatted_circles_by_page = changes_by_page
+        #reflejar cambios en el changes list widget
+        self.annotated_viewer.changes_list_widget.update_changes_list(self.annotated_viewer.formatted_circles_by_page)
+  
     def update_annotations(self, page_num, new_annotations, dpi=300):
-        print("update_annotations llamado")
         """Actualiza las anotaciones del PDF según las modificaciones del usuario."""
         if not hasattr(self.annotated_viewer, 'document') or not self.annotated_viewer.document:
             print("No hay un documento cargado en annotated_viewer.")
@@ -368,10 +480,9 @@ class MainWindow(QMainWindow):
 
         try:
             page = self.annotated_viewer.document[page_num]
-
+            print("Si, page num")
             # Factor de escala para convertir de coordenadas de imagen a PDF
             scale_factor = 72 / dpi
-
             # Eliminar anotaciones previas de tipo "Circle"
             annot = page.first_annot
             while annot:
@@ -379,10 +490,10 @@ class MainWindow(QMainWindow):
                 if annot.type[1] == 'Circle':
                     page.delete_annot(annot)  # Método correcto para eliminar anotaciones
                 annot = next_annot  # Pasar al siguiente
-
-            # Agregar nuevas anotaciones con escala ajustada
+            
+            #for circle, annotations in new_annotations.items():
             for circle in new_annotations:
-                if circle["selected"] == False:
+                if circle['selected'] == False:
                     continue
                 else:
                     x_pdf = circle['x'] * scale_factor
@@ -393,7 +504,6 @@ class MainWindow(QMainWindow):
                     circle_annot = page.add_circle_annot(
                         (x_pdf - radius_pdf, y_pdf - radius_pdf, x_pdf + radius_pdf, y_pdf + radius_pdf)
                     )
-
                     # Configurar propiedades
                     circle_annot.set_border(width=2)
                     circle_annot.set_colors(stroke=(0, 0, 1))  # Azul
@@ -453,12 +563,14 @@ class MainWindow(QMainWindow):
                 self.rotate_both_action.setVisible(True)
             else:
                 # Crear el botón de rotación para ambos PDFs
+                print("Creando accion")
                 self.rotate_both_action = QAction(QIcon("C:/PDF_Comparator/src/ui/icons/rotate.png"), "Rotar ambos PDFs", self)
                 self.rotate_both_action.setStatusTip("Rotar ambos PDFs simultáneamente")
                 self.rotate_both_action.triggered.connect(self.show_both_rotation_dialog)
                 
                 # Añadir a la barra de herramientas
                 toolbar = self.findChild(QToolBar)
+                toolbar = self.addToolBar("Principal")
                 if toolbar:
                     toolbar.addAction(self.rotate_both_action)
         else:
@@ -643,14 +755,17 @@ class MainWindow(QMainWindow):
             output_dir = os.path.join(base_dir, 'data', 'output')
             self.original_viewer.load_pdf(file_path)
             self.update_compare_button()
+            self.update_apply_json_button()
             self.rotation_original.file_path = file_path
     
     def select_pdf2(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Seleccionar PDF Modificado", "", "PDF Files (*.pdf)")
         if file_path:
             self.pdf2_file = file_path
+            self.json_loader_ui.pdf_path = file_path
             self.pdf2_path.setText(os.path.basename(file_path))
             self.update_compare_button()
+            self.update_apply_json_button()
     
     def select_save_path(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Guardar PDF Anotado", "", "PDF Files (*.pdf)")
@@ -658,16 +773,50 @@ class MainWindow(QMainWindow):
             self.output_file = file_path
             self.save_path.setText(os.path.basename(file_path))
             self.update_compare_button()
+            self.update_apply_json_button()
             self.annotated_viewer.file_path = file_path
-            print("Ruta para annotated pdf",file_path,">>>>>>>>>>>>>>")
             self.rotation_handler.file_path = file_path
     
+    def load_json_file(self):
+        """Carga un archivo JSON con información de cambios."""
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar Archivo JSON", "",
+            "Archivos JSON (*.json);;Todos los archivos (*)", 
+            options=options
+        )
+        
+        if file_path:
+            # Cargar el JSON
+            if self.json_loader_ui.json_loader.load_json(file_path):
+                self.json_loader_ui.json_path = file_path
+                self.json_loader_ui.update_load_status()
+                
+                # Habilitar botón de aplicar si también hay PDF cargado
+                if self.json_loader_ui.pdf_path:
+                    self.json_loader_ui.apply_changes_button.setEnabled(True)
+                
+                QMessageBox.information(self, "JSON Cargado", 
+                                      f"Archivo JSON cargado correctamente: {os.path.basename(file_path)}")
+            else:
+                QMessageBox.warning(self, "Error de Carga", 
+                                  "No se pudo cargar el archivo JSON. Verifique que tenga el formato correcto.")
+        #Update button state
+        self.update_apply_json_button()        
+            
     def update_compare_button(self):
         # Comprueba si ambas rutas existen y no son None
         if self.pdf1_file is not None and self.pdf2_file is not None:
             self.compare_button.setEnabled(True)
         else:
             self.compare_button.setEnabled(False)
+
+    def update_apply_json_button(self):
+        # Comprueba si ambas rutas existen y no son None
+        if self.pdf1_file is not None and self.pdf2_file is not None and self.json_loader_ui.json_path is not None:
+            self.apply_json_button.setEnabled(True)
+        else:
+            self.apply_json_button.setEnabled(False)
 
     def start_comparison(self):
         if not self.pdf1_file or not self.pdf2_file:
@@ -723,7 +872,7 @@ class MainWindow(QMainWindow):
     def update_progress(self, value):
         self.progress_bar.setValue(value)
     
-    def comparison_finished(self, output_path, circles_by_page):
+    def comparison_finished(self, output_path, circles_by_page, json_loaded = False):
         self.config_layout_visible = False  # Marcar como oculto
 
         # Habilitar circle_clicked event
@@ -748,13 +897,20 @@ class MainWindow(QMainWindow):
             self.original_viewer.current_page = self.annotated_viewer.current_page
             self.original_viewer.render_current_page()
 
+        page_width = 7013
+        page_height = 4959
+
         # Actualizar visibilidad de círculos
-        self.annotated_viewer.set_circles(circles_by_page, page_width, page_height)
-        
+        self.annotated_viewer.set_circles(circles_by_page, page_width, page_height, json_loaded)
+
         # IMPORTANTE: Aplicar inmediatamente el filtrado a las anotaciones visibles
-        for page_num in self.annotated_viewer.formatted_circles_by_page:
-            self.update_annotations(page_num, self.annotated_viewer.formatted_circles_by_page[page_num])
-        
+        if json_loaded:
+            for page_num in self.circles_by_page:
+                self.update_annotations(page_num, self.circles_by_page[page_num])
+        else:
+            for page_num in self.annotated_viewer.formatted_circles_by_page:
+                self.update_annotations(page_num, self.annotated_viewer.formatted_circles_by_page[page_num])
+
         # Actualizar visibilidad de círculos
         self.toggle_circle_visibility(self.toggle_circles.isChecked())
         
@@ -820,17 +976,25 @@ class MainWindow(QMainWindow):
             # Cuando cambia la página en el visor original, actualizar el visor anotado
             self.original_viewer.prev_button.clicked.disconnect()  # Desconectar conexiones existentes
             self.original_viewer.next_button.clicked.disconnect()
+            #lineas anadidas
+            self.annotated_viewer.prev_button.clicked.disconnect()  # Desconectar conexiones existentes
+            self.annotated_viewer.next_button.clicked.disconnect()
             
             self.original_viewer.prev_button.clicked.connect(self.sync_prev_page)
             self.original_viewer.next_button.clicked.connect(self.sync_next_page)
+            #lineas anadidas
+            self.annotated_viewer.prev_button.clicked.connect(self.sync_prev_page)
+            self.annotated_viewer.next_button.clicked.connect(self.sync_next_page)
 
     def sync_prev_page(self):
         """Navega a la página anterior en ambos visores."""
         if self.annotated_viewer.current_page > 0:
+            self.annotated_viewer.next_button.setEnabled(True)
             self.annotated_viewer.current_page -= 1
             self.annotated_viewer.render_current_page()
             self.annotated_viewer.update_page_info()
             
+            self.original_viewer.next_button.setEnabled(True)
             self.original_viewer.current_page = self.annotated_viewer.current_page
             self.original_viewer.render_current_page()
             self.original_viewer.update_page_info()
@@ -838,10 +1002,12 @@ class MainWindow(QMainWindow):
     def sync_next_page(self):
         """Navega a la página siguiente en ambos visores."""
         if self.annotated_viewer.current_page < self.annotated_viewer.document.page_count - 1:
+            self.annotated_viewer.prev_button.setEnabled(True)
             self.annotated_viewer.current_page += 1
             self.annotated_viewer.render_current_page()
             self.annotated_viewer.update_page_info()
             
+            self.original_viewer.prev_button.setEnabled(True)
             self.original_viewer.current_page = self.annotated_viewer.current_page
             self.original_viewer.render_current_page()
             self.original_viewer.update_page_info()
@@ -895,3 +1061,13 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Error durante la limpieza: {e}")
             event.accept()
+
+# Punto de entrada de la aplicación
+def main():
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()

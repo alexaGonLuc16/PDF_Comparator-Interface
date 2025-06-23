@@ -13,6 +13,7 @@ print("Iniciando app...")
 
 #establecer el directorio de trabajo de la carpeta del script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+RESTART_CODE = 1001  # Código especial para reinicio
 os.chdir(BASE_DIR)
 
 # Crear directorios necesarios
@@ -88,19 +89,14 @@ def process_command_line():
     pdf_annotator.add_circle_annotations(args.pdf2, circles_by_page, output_pdf, dpi=args.dpi)
     
     # Guardar información de círculos para posible uso posterior
-    pdf_annotator.save_circles_to_json(circles_by_page, f"{output_pdf}.json")
+    pdf_annotator.save_changes_to_json(pdf_annotator.input_pdf ,circles_by_page)
     
     print(f"Proceso completado. PDF anotado guardado en: {output_pdf}")
     return output_pdf
 
 if __name__ == "__main__":
-    # Verificar si se proporcionaron argumentos
-    if len(sys.argv) > 1:
-        # Modo línea de comandos
-        process_command_line()
-        #process_command_line(selected_pages)
-    else:
-        # Limpiar directorio temporal antes de iniciar la aplicación
+    while True:
+        # Limpiar directorio temporal (tu código existente)
         try:
             temp_dir = os.path.join(BASE_DIR, 'data', 'temp')
             print(f"Limpiando directorio temporal al inicio: {temp_dir}")
@@ -116,22 +112,68 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error durante la limpieza inicial: {e}")
         
-        # Modo interfaz gráfica
-        print("Creando aplicación Qt...")
+        # Crear aplicación
         app = QApplication(sys.argv)
         
-        print("Creando ventana principal...")
-
         try:
             window = MainWindow()
-            print("Ventana principal creada")
             window.show()
-            print("Ventana mostrada")
         except Exception as e:
             print(f"Error al crear/mostrar ventana: {e}")
             import traceback
             traceback.print_exc()
             sys.exit(1)
         
-        print("Iniciando bucle de eventos...")
-        sys.exit(app.exec_())
+        exit_code = app.exec_()
+        
+        if exit_code != RESTART_CODE:
+            # Salir normalmente
+            sys.exit(exit_code)
+        
+        # Si llegamos aquí, es un reinicio
+        print("Reiniciando aplicación...")
+        del app  # Limpiar la aplicación anterior
+
+    # Verificar si se proporcionaron argumentos
+    #if len(sys.argv) > 1:
+        # Modo línea de comandos
+        #process_command_line()
+        #process_command_line(selected_pages)
+    #else:
+        # Limpiar directorio temporal antes de iniciar la aplicación
+        #try:
+            #temp_dir = os.path.join(BASE_DIR, 'data', 'temp')
+            #print(f"Limpiando directorio temporal al inicio: {temp_dir}")
+            
+            #for filename in os.listdir(temp_dir):
+                #if filename.endswith('.jpg'):
+                    #file_path = os.path.join(temp_dir, filename)
+                    #try:
+                        #os.remove(file_path)
+                        #print(f"Borrada imagen temporal anterior: {filename}")
+                    #except Exception as e:
+                        #print(f"Error al borrar {filename}: {e}")
+        #except Exception as e:
+            #print(f"Error durante la limpieza inicial: {e}")
+        
+        # Modo interfaz gráfica
+        #print("Creando aplicación Qt...")
+        #app = QApplication(sys.argv)
+        
+        #print("Creando ventana principal...")
+
+        #try:
+            #window = MainWindow()
+            #print("Ventana principal creada")
+            #window.show()
+            #print("Ventana mostrada")
+        #except Exception as e:
+            #print(f"Error al crear/mostrar ventana: {e}")
+            #import traceback
+            #traceback.print_exc()
+            #sys.exit(1)
+        
+        #print("Iniciando bucle de eventos...")
+        #sys.exit(app.exec_())
+
+

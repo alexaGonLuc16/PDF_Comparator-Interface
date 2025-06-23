@@ -67,7 +67,7 @@ def plot_kmeans_circles(points, clusters, centers, radii):
     colors = ['blue', 'green', 'red', 'purple', 'orange', 'brown', 'pink', 'gray', 'olive', 'cyan']
     
     # Plotear todos los puntos originales como referencia (más pequeños)
-    ax.scatter(points[:, 0], points[:, 1], color='lightgray', alpha=0.5, s=20)
+    ax.scatter(points[:, 0], points[:, 1], color='blue', alpha=0.5, s=20)
     
     # Plotear cada cluster y su círculo
     for i, (cluster, center, radius) in enumerate(zip(clusters, centers, radii)):
@@ -114,5 +114,5 @@ if __name__ == "__main__":
     plot_kmeans_circles(all_points, clusters, centers, radii)
     
     # Imprimir información de los círculos
-    for i, (center, radius) in enumerate(zip(centers, radii)):
-        print(f"Círculo {i+1}: Centro = {center}, Radio = {radius:.2f}")
+    #for i, (center, radius) in enumerate(zip(centers, radii)):
+        #print(f"Círculo {i+1}: Centro = {center}, Radio = {radius:.2f}")
