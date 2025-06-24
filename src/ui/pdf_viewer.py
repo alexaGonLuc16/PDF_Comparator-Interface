@@ -2,11 +2,9 @@ import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QScrollArea, QSizePolicy, QListWidget, 
                             QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem, QToolTip, QRubberBand, QFileDialog, QSlider, QDialog, QMessageBox)
-from PyQt5.QtGui import QPixmap, QImage, QKeyEvent
+from PyQt5.QtGui import QPixmap, QImage, QKeyEvent, QColor, QBrush
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal, QEvent, QPoint, QRect, QSize
 from src.pdf_rotation import PDFRotationUIHandler
-#from src.pdf_rotation import PDFRotationUIHandler
-
 from math import sqrt
 
 class OpacityDialog(QDialog):
@@ -101,7 +99,26 @@ class ChangesListWidget(QWidget):
 
         #layout.addWidget(title_label)
         layout.addWidget(self.changes_tree)
-    
+
+    def update_page_item_color(self, page_item):
+        total = page_item.childCount()
+        if total == 0:
+            return
+
+        checked = sum(
+            1 for i in range(total) if page_item.child(i).checkState(1) == Qt.Checked
+        )
+
+        if checked == total:
+            # Todos seleccionados → negro
+            page_item.setForeground(0, QBrush(QColor("black")))
+        elif checked == 0:
+            # Ninguno seleccionado → rojo
+            page_item.setForeground(0, QBrush(QColor(220, 0, 0)))  # rojo fuerte
+        else:
+            # Algunos seleccionados → gris claro
+            page_item.setForeground(0, QBrush(QColor(150, 150, 150)))  # gris claro
+
     def update_changes_list(self, formatted_circles_by_page):
         """Actualiza la lista completa de cambios por página"""
         if not hasattr(self, 'changes_tree') or self.changes_tree is None:
@@ -174,11 +191,22 @@ class ChangesListWidget(QWidget):
 
                 # Si se hizo clic en la columna del checkbox, actualizar el estado
                 if column == 1:
-                    is_checked = item.checkState(1) == 2
+                    # Click en checkbox
+                    is_checked = item.checkState(1) == Qt.Checked
                     change["selected"] = is_checked
                     print("click en checkbox")
                     self.circle_selected.emit(page_num, change, is_checked)
                     self.update_annotations_sig.emit(page_num, self.formatted_circles_by_page[page_num])
+
+                    # Buscar y actualizar el nodo padre de forma segura
+                    for i in range(self.changes_tree.topLevelItemCount()):
+                        page_item = self.changes_tree.topLevelItem(i)
+                        if not page_item:
+                            continue
+                        page_data = page_item.data(0, 256)
+                        if page_data and page_data.get("type") == "page" and page_data.get("page") == page_num:
+                            self.update_page_item_color(page_item)
+                            break
                 else:
                     # Si se hizo clic en el nombre, navegar al cambio
                     self.change_selected.emit(page_num, change)
@@ -245,6 +273,7 @@ class PDFViewer(QWidget):
         self.temp_highlight_annot = None  # Para almacenar la anotación temporal
         self.highlights_by_page = {}
         self.watermarks_by_page = {} #Alacenar las marcas de agua por pagina : {"path","opacity"}
+        self.active_circle_annot = None
     
     def init_ui(self):
         # Layout principal
@@ -944,25 +973,50 @@ class PDFViewer(QWidget):
     
     def navigate_to_change(self, page_num, change):
         """Navega a un cambio específico cuando se selecciona de la lista"""
-        print("change:",change,"--------------------->navigating to change")
-        # Cambiar a la página correspondiente si es necesario
+        #print("change:", change, "--------------------->navigating to change")
+
+        # Eliminar solo el círculo rojo anterior
+        if self.active_circle_annot:
+            try:
+                page_of_annot = self.document[self.current_page]
+                page_of_annot.delete_annot(self.active_circle_annot)
+                page_of_annot.clean_contents()
+                self.document.saveIncr()
+            except Exception as e:
+                print("Error deleting red circle:", e)
+            self.active_circle_annot = None
+
+        # Navegar a página si es necesario
         if self.current_page != page_num:
             self.current_page = page_num
             self.update_page_info()
-            
-            # Actualizar estado de los botones
             self.prev_button.setEnabled(self.current_page > 0)
             self.next_button.setEnabled(self.current_page < self.document.page_count - 1)
-        
-        # Establecer zoom al 150%
-        #self.zoom_factor = 1.5
-        self.zoom_factor = 2.0
 
-        # Renderizar la página con el nuevo zoom
+        # Zoom y render
+        self.zoom_factor = 2.0
         self.render_current_page()
-        
-        # Calcular la posición del scroll para centrar el cambio
         self.scroll_to_change(change)
+
+        # Agregar nuevo círculo rojo
+        if self.document:
+            page = self.document.load_page(page_num)
+            scale_factor = 72 / self.dpi
+            x_pdf = change['x'] * scale_factor
+            y_pdf = change['y'] * scale_factor
+            radius_pdf = change.get('radius', 20) * scale_factor
+
+            circle_annot = page.add_circle_annot(
+                (x_pdf - radius_pdf, y_pdf - radius_pdf, x_pdf + radius_pdf, y_pdf + radius_pdf)
+            )
+            circle_annot.set_border(width=2)
+            circle_annot.set_colors(stroke=(1, 0, 0), fill=None)  # solo contorno rojo
+            circle_annot.set_opacity(1.0)
+            circle_annot.set_flags(0)
+
+            self.active_circle_annot = circle_annot
+            self.document.saveIncr()
+            self.render_current_page()
     
     def scroll_to_change(self, change):
 
