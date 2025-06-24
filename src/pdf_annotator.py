@@ -45,8 +45,9 @@ class PDFAnnotator:
                 
                 # Configurar propiedades
                 circle.set_border(width=2)
-                circle.set_colors(stroke=(1, 0, 0))  # Rojo
-                circle.update(opacity=0.7)
+                circle.set_colors(stroke=(0, 0, 1))  # Rojo
+
+                circle.update(opacity = 0.3)
                 
                 # Hacer la anotación toggle-able
                 circle.set_flags(0)  # No ocultar por defecto

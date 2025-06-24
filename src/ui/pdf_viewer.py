@@ -245,6 +245,7 @@ class PDFViewer(QWidget):
         self.temp_highlight_annot = None  # Para almacenar la anotación temporal
         self.highlights_by_page = {}
         self.watermarks_by_page = {} #Alacenar las marcas de agua por pagina : {"path","opacity"}
+        self.active_circle_annot = None
     
     def init_ui(self):
         # Layout principal
@@ -944,25 +945,50 @@ class PDFViewer(QWidget):
     
     def navigate_to_change(self, page_num, change):
         """Navega a un cambio específico cuando se selecciona de la lista"""
-        print("change:",change,"--------------------->navigating to change")
-        # Cambiar a la página correspondiente si es necesario
+        #print("change:", change, "--------------------->navigating to change")
+
+        # Eliminar solo el círculo rojo anterior
+        if self.active_circle_annot:
+            try:
+                page_of_annot = self.document[self.current_page]
+                page_of_annot.delete_annot(self.active_circle_annot)
+                page_of_annot.clean_contents()
+                self.document.saveIncr()
+            except Exception as e:
+                print("Error deleting red circle:", e)
+            self.active_circle_annot = None
+
+        # Navegar a página si es necesario
         if self.current_page != page_num:
             self.current_page = page_num
             self.update_page_info()
-            
-            # Actualizar estado de los botones
             self.prev_button.setEnabled(self.current_page > 0)
             self.next_button.setEnabled(self.current_page < self.document.page_count - 1)
-        
-        # Establecer zoom al 150%
-        #self.zoom_factor = 1.5
-        self.zoom_factor = 2.0
 
-        # Renderizar la página con el nuevo zoom
+        # Zoom y render
+        self.zoom_factor = 2.0
         self.render_current_page()
-        
-        # Calcular la posición del scroll para centrar el cambio
         self.scroll_to_change(change)
+
+        # Agregar nuevo círculo rojo
+        if self.document:
+            page = self.document.load_page(page_num)
+            scale_factor = 72 / self.dpi
+            x_pdf = change['x'] * scale_factor
+            y_pdf = change['y'] * scale_factor
+            radius_pdf = change.get('radius', 20) * scale_factor
+
+            circle_annot = page.add_circle_annot(
+                (x_pdf - radius_pdf, y_pdf - radius_pdf, x_pdf + radius_pdf, y_pdf + radius_pdf)
+            )
+            circle_annot.set_border(width=2)
+            circle_annot.set_colors(stroke=(1, 0, 0), fill=None)  # solo contorno rojo
+            circle_annot.set_opacity(1.0)
+            circle_annot.set_flags(0)
+
+            self.active_circle_annot = circle_annot
+            self.document.saveIncr()
+            self.render_current_page()
     
     def scroll_to_change(self, change):
 

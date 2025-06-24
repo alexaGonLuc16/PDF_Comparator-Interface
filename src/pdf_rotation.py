@@ -280,6 +280,7 @@ class PDFRotator:
                     json_data["pages"][page_key]["watermarks"] = watermark
 
             # Guardar el JSON
+
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(json_data, f, indent=2)
 

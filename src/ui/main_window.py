@@ -507,7 +507,7 @@ class MainWindow(QMainWindow):
                     # Configurar propiedades
                     circle_annot.set_border(width=2)
                     circle_annot.set_colors(stroke=(0, 0, 1))  # Azul
-                    circle_annot.update(opacity=0.7)
+                    circle_annot.update(opacity=0.4)
 
             # Refrescar visor para mostrar actualizaciones
             self.annotated_viewer.reload_page()

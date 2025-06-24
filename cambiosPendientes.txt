@@ -1,3 +1,0 @@
--- arreglar el subrayado horizontal
---Colocar boton de reinicio/nueva comparacion
---Arreglar colocacion horizontal de la marca de agua(si se guarda en el pdf pero no se aplica ese cambio al cargar el json)
