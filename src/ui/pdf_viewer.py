@@ -2,11 +2,9 @@ import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QScrollArea, QSizePolicy, QListWidget, 
                             QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem, QToolTip, QRubberBand, QFileDialog, QSlider, QDialog, QMessageBox)
-from PyQt5.QtGui import QPixmap, QImage, QKeyEvent
+from PyQt5.QtGui import QPixmap, QImage, QKeyEvent, QColor, QBrush
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal, QEvent, QPoint, QRect, QSize
 from src.pdf_rotation import PDFRotationUIHandler
-#from src.pdf_rotation import PDFRotationUIHandler
-
 from math import sqrt
 
 class OpacityDialog(QDialog):
@@ -101,7 +99,26 @@ class ChangesListWidget(QWidget):
 
         #layout.addWidget(title_label)
         layout.addWidget(self.changes_tree)
-    
+
+    def update_page_item_color(self, page_item):
+        total = page_item.childCount()
+        if total == 0:
+            return
+
+        checked = sum(
+            1 for i in range(total) if page_item.child(i).checkState(1) == Qt.Checked
+        )
+
+        if checked == total:
+            # Todos seleccionados → negro
+            page_item.setForeground(0, QBrush(QColor("black")))
+        elif checked == 0:
+            # Ninguno seleccionado → rojo
+            page_item.setForeground(0, QBrush(QColor(220, 0, 0)))  # rojo fuerte
+        else:
+            # Algunos seleccionados → gris claro
+            page_item.setForeground(0, QBrush(QColor(150, 150, 150)))  # gris claro
+
     def update_changes_list(self, formatted_circles_by_page):
         """Actualiza la lista completa de cambios por página"""
         if not hasattr(self, 'changes_tree') or self.changes_tree is None:
@@ -174,11 +191,22 @@ class ChangesListWidget(QWidget):
 
                 # Si se hizo clic en la columna del checkbox, actualizar el estado
                 if column == 1:
-                    is_checked = item.checkState(1) == 2
+                    # Click en checkbox
+                    is_checked = item.checkState(1) == Qt.Checked
                     change["selected"] = is_checked
                     print("click en checkbox")
                     self.circle_selected.emit(page_num, change, is_checked)
                     self.update_annotations_sig.emit(page_num, self.formatted_circles_by_page[page_num])
+
+                    # Buscar y actualizar el nodo padre de forma segura
+                    for i in range(self.changes_tree.topLevelItemCount()):
+                        page_item = self.changes_tree.topLevelItem(i)
+                        if not page_item:
+                            continue
+                        page_data = page_item.data(0, 256)
+                        if page_data and page_data.get("type") == "page" and page_data.get("page") == page_num:
+                            self.update_page_item_color(page_item)
+                            break
                 else:
                     # Si se hizo clic en el nombre, navegar al cambio
                     self.change_selected.emit(page_num, change)
