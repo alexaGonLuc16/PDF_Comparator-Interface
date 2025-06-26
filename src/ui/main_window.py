@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                             QWidget, QPushButton, QFileDialog, QLabel, QCheckBox,
-                            QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup, QMenu, QToolBar, QAction, QMessageBox, QTabWidget, QSplitter)
+                            QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup, QMenu, QToolBar, QAction, QMessageBox, QTabWidget, QSplitter, QSizePolicy)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
 from src.pdf_rotation import PDFRotationUIHandler, RotationDialog
@@ -348,9 +348,10 @@ class MainWindow(QMainWindow):
         
         # Título de la lista de cambios
         changes_title = QLabel("Detected Changes")
-        changes_title.setAlignment(Qt.AlignCenter)
+        changes_title.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        changes_title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         changes_title.setStyleSheet("font-size: 11pt; font-weight: bold;")
-        
+
         changes_layout.addWidget(changes_title)
 
         #anadir solo el visor anotado por defecto

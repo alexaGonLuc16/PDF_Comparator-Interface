@@ -54,22 +54,26 @@ class ImageComparator:
         # Encontrar contornos significativos
         contours, _ = cv2.findContours(diff_processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         significant_contours = [c for c in contours if cv2.contourArea(c) >= self.min_contour_area]
-        
+
         # Extraer coordenadas de los contornos encontrados
         diff_coords = []
-        for contour in significant_contours:
-            for point in contour:
-                x, y = point[0]  # Obtener coordenadas (x, y)
-                diff_coords.append((x, y))
-        
-        # Resaltar cambios en la imagen original (en color rojo)
-        if len(img2.shape) == 2:  # Si la imagen de entrada era B/N, la convertimos a color para el resaltado
-            img2_color = cv2.cvtColor(img2, cv2.COLOR_GRAY2BGR)
-        else:
-            img2_color = img2.copy()
+        img2_color =  img2
+
+        if len(significant_contours) < 90:
+
+            for contour in significant_contours:
+                for point in contour:
+                    x, y = point[0]  # Obtener coordenadas (x, y)
+                    diff_coords.append((x, y))
             
-        cv2.drawContours(img2_color, significant_contours, -1, (0, 0, 255), 2)
-        
-        # Devolver coordenadas de diferencias + imagen resaltada
+            # Resaltar cambios en la imagen original (en color rojo)
+            if len(img2.shape) == 2:  # Si la imagen de entrada era B/N, la convertimos a color para el resaltado
+                img2_color = cv2.cvtColor(img2, cv2.COLOR_GRAY2BGR)
+            else:
+                img2_color = img2.copy()
+                
+            cv2.drawContours(img2_color, significant_contours, -1, (0, 0, 255), 2)
+            
+            # Devolver coordenadas de diferencias + imagen resaltada
         return diff_coords, img2_color, img1.shape
     

@@ -31,6 +31,7 @@ class PDFAnnotator:
         
         # Para cada página con círculos
         for page_num, circles in circles_by_page.items():
+    
             page = doc[int(page_num)]
             
             for x, y, radius in circles:
@@ -41,7 +42,7 @@ class PDFAnnotator:
                 
                 # Crear anotación de círculo
                 circle = page.add_circle_annot((x_pdf - radius_pdf, y_pdf - radius_pdf, 
-                                              x_pdf + radius_pdf, y_pdf + radius_pdf))
+                                            x_pdf + radius_pdf, y_pdf + radius_pdf))
                 
                 # Configurar propiedades
                 circle.set_border(width=2)

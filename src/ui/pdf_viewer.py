@@ -86,19 +86,26 @@ class ChangesListWidget(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
-        
-        # Árbol para mostrar cambios de forma jerárquica
+
         self.changes_tree = QTreeWidget(self)
         self.changes_tree.setHeaderLabels(["Page/Difference", "State"])
         self.changes_tree.setColumnWidth(0, 150)
-        self.changes_tree.itemClicked.connect(self.on_item_clicked)
-        
-        # Habilitar edición de elementos
+        self.changes_tree.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        from PyQt5.QtWidgets import QHeaderView
+        self.changes_tree.header().setStretchLastSection(False)
+        self.changes_tree.header().setSectionResizeMode(0, QHeaderView.Interactive)
+        self.changes_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+
         self.changes_tree.setEditTriggers(QTreeWidget.DoubleClicked | QTreeWidget.EditKeyPressed)
+        self.changes_tree.itemClicked.connect(self.on_item_clicked)
         self.changes_tree.itemChanged.connect(self.on_item_edited)
 
-        #layout.addWidget(title_label)
+        self.changes_tree.setVisible(False) 
         layout.addWidget(self.changes_tree)
+
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.setMaximumWidth(300)
 
     def update_page_item_color(self, page_item):
         total = page_item.childCount()
@@ -134,9 +141,21 @@ class ChangesListWidget(QWidget):
                 expanded_states[data["page"]] = item.isExpanded()
 
         # Desconectar temporalmente la señal para evitar activaciones durante la actualización
-        self.changes_tree.itemChanged.disconnect(self.on_item_edited)
+        try:
+            self.changes_tree.itemChanged.disconnect(self.on_item_edited)
+        except TypeError:
+            pass  # Ya no estaba conectado, lo ignoramos
 
         self.changes_tree.clear()
+        if not formatted_circles_by_page:
+            # Reinsertar el placeholder
+            placeholder = QTreeWidgetItem(self.changes_tree)
+            placeholder.setText(0, "No differences found.")
+            placeholder.setFlags(Qt.ItemIsEnabled)
+            placeholder.setFirstColumnSpanned(True)
+            placeholder.setForeground(0, QBrush(QColor("gray")))
+            return
+
         self.changes_by_page = formatted_circles_by_page
 
         # Crear un elemento en el árbol para cada página con cambios
@@ -172,6 +191,7 @@ class ChangesListWidget(QWidget):
         
         # Reconectar la señal
         self.changes_tree.itemChanged.connect(self.on_item_edited)
+        self.changes_tree.setVisible(True)
     
     def on_item_clicked(self, item, column):
         """Maneja el clic en un elemento del árbol"""
