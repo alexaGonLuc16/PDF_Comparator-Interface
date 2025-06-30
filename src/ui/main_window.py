@@ -308,7 +308,9 @@ class MainWindow(QMainWindow):
         self.original_viewer = PDFViewer("Original PDF")
 
         # Visor anotado (derecha)
-        self.annotated_viewer = PDFViewer("Annotated PDF")
+        self.annotated_viewer = PDFViewer("Annotated PDF", self.original_viewer)
+        self.original_viewer.scroll_area = self.annotated_viewer
+
         self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer, title = "Annotated PDF")
         self.annotated_viewer.document_modified = False
 

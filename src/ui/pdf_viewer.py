@@ -268,7 +268,7 @@ class PDFViewer(QWidget):
     update_annotations = pyqtSignal(int, list)  # Página, cambios
     restart_signal = pyqtSignal()  # Restart app
 
-    def __init__(self, title="PDF Viewer"):
+    def __init__(self, title="PDF Viewer", other_visor = None): #pass the other pdf visor
         super(PDFViewer, self).__init__()
         self.title = title
         self.document = None
@@ -277,6 +277,7 @@ class PDFViewer(QWidget):
         self.clicks_enabled = False
         self.dpi = 300
         self.changes_list_widget = None  # Inicializar a None
+
         self.original_document = None # para almacenal el pdf original
         self.showing_original = False # para mostrar el pdf anotado
         self.formatted_circles_by_page = {}
@@ -294,6 +295,12 @@ class PDFViewer(QWidget):
         self.highlights_by_page = {}
         self.watermarks_by_page = {} #Alacenar las marcas de agua por pagina : {"path","opacity"}
         self.active_circle_annot = None
+        self.drag_mode = False
+        self.dragging = False
+        self.last_drag_pos = QPoint()
+        self.page_label.mousePressEvent = self.label_mouse_press_event
+        self.page_label.mouseMoveEvent = self.label_mouse_move_event
+        self.other_visor = other_visor
     
     def init_ui(self):
         # Layout principal
@@ -311,6 +318,11 @@ class PDFViewer(QWidget):
             layout.addLayout(restart_layout)
             
             self.reload_button.clicked.connect(self.confirm_restart)
+
+        self.drag_button = QPushButton("Mover documento")
+        self.drag_button.setCheckable(True)
+        self.drag_button.toggled.connect(self.toggle_drag_mode)
+        layout.addWidget(self.drag_button)  # Ajusta según tu layout
 
         # Título
         self.title_label = QLabel(self.title)
@@ -372,7 +384,6 @@ class PDFViewer(QWidget):
         self.watermark_all_button = QPushButton("Watermark(all pages)")
         self.watermark_all_button.clicked.connect(self.select_watermark_for_all_pages)
 
-
         watermark_layout.addWidget(self.watermark_button)
         watermark_layout.addWidget(self.watermark_all_button)
 
@@ -390,6 +401,36 @@ class PDFViewer(QWidget):
             self.changes_list_widget.circle_selected.connect(self.modify_annotations) #modify annotations returns a list
             self.changes_list_widget.update_annotations_sig.connect(self.send_annotations)
 
+    def label_mouse_move_event(self, event):
+        if self.drag_mode and self.dragging:
+            delta = event.globalPos() - self.last_drag_pos
+            self.last_drag_pos = event.globalPos()
+
+            # Scroll del visor activo
+            h_scroll = self.scroll_area.horizontalScrollBar()
+            v_scroll = self.scroll_area.verticalScrollBar()
+
+            h_scroll.setValue(h_scroll.value() - delta.x())
+            v_scroll.setValue(v_scroll.value() - delta.y())
+
+            # Scroll del visor sincronizado
+            if hasattr(self, 'other_scroll_area') and self.other_visor:
+                other_h = self.other_visor.scroll_area.horizontalScrollBar()
+                other_v = self.other_visor.scroll_area.verticalScrollBar()
+
+                other_h.setValue(other_h.value() - delta.x())
+                other_v.setValue(other_v.value() - delta.y())
+
+            return
+
+    def toggle_drag_mode(self, checked):
+        print("Drag_state",checked)
+        self.drag_mode = checked
+        if checked:
+            self.setCursor(Qt.OpenHandCursor)
+        else:
+            self.setCursor(Qt.ArrowCursor)
+    
     def confirm_restart(self):
         """Pide confirmación antes de emitir la señal de reinicio"""
         confirm = QMessageBox.question(
@@ -692,6 +733,10 @@ class PDFViewer(QWidget):
         """Maneja el evento de soltar el botón del mouse"""
         print("mouseReleaseEvent - Botón:", event.button(), "- Highlighting:", self.highlighting)
         
+        if event.button() == Qt.LeftButton and self.drag_mode and self.dragging:
+            self.dragging = False
+            self.page_label.setCursor(Qt.OpenHandCursor)
+            
         # Si estábamos subrayando y es botón izquierdo
         if self.highlighting and event.button() == Qt.LeftButton and self.document:
             print("Finalizando subrayado")
@@ -1076,15 +1121,20 @@ class PDFViewer(QWidget):
         # Establecer los valores de scroll
         self.scroll_area.horizontalScrollBar().setValue(h_value)
         self.scroll_area.verticalScrollBar().setValue(v_value)
-    
+
     def label_mouse_press_event(self, event):
         """Maneja los clics en el label del PDF"""
         pos = event.pos()
         print("Label Press event")
         print(f"Click en QLabel (sin desplazamiento): {pos}")
 
+        if event.button() == Qt.LeftButton and self.drag_mode:
+            self.dragging = True
+            self.last_drag_pos = event.globalPos()
+            self.page_label.setCursor(Qt.ClosedHandCursor)
+
         # Si es botón izquierdo y estamos en PDF anotado, iniciar subrayado
-        if event.button() == Qt.LeftButton and not self.showing_original and self.document:
+        if event.button() == Qt.LeftButton and not self.showing_original and self.document and not self.drag_mode:
             print("Iniciando modo subrayado")
             self.highlighting = True
             
