@@ -6,6 +6,7 @@ from PyQt5.QtGui import QPixmap, QImage, QKeyEvent, QColor, QBrush
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal, QEvent, QPoint, QRect, QSize
 from src.pdf_rotation import PDFRotationUIHandler
 from math import sqrt
+import inspect
 
 class OpacityDialog(QDialog):
     """Diálogo para seleccionar la opacidad de la marca de agua"""
@@ -301,6 +302,7 @@ class PDFViewer(QWidget):
         self.page_label.mousePressEvent = self.label_mouse_press_event
         self.page_label.mouseMoveEvent = self.label_mouse_move_event
         self.other_visor = other_visor
+        print("Other visor", other_visor)
     
     def init_ui(self):
         # Layout principal
@@ -308,21 +310,25 @@ class PDFViewer(QWidget):
         
         #Boton de reinicio
         if self.title == "Annotated PDF":
-            self.reload_button = QPushButton("Compare/Load new schematic")
+            self.reload_button = QPushButton("Compare new schematic")
             restart_layout = QHBoxLayout()
             
-            print("Button created------------------------------")
             restart_layout.addWidget(self.reload_button, 1)
             invisible_label = QLabel("")
-            restart_layout.addWidget(invisible_label, 5)
+            restart_layout.addWidget(invisible_label, 3)
             layout.addLayout(restart_layout)
             
             self.reload_button.clicked.connect(self.confirm_restart)
 
-        self.drag_button = QPushButton("Mover documento")
-        self.drag_button.setCheckable(True)
-        self.drag_button.toggled.connect(self.toggle_drag_mode)
-        layout.addWidget(self.drag_button)  # Ajusta según tu layout
+            #create panning button 
+            self.drag_button = QPushButton("Enable Pan Tool")
+            panning_layout = QHBoxLayout()
+            self.drag_button.setCheckable(True)
+            self.drag_button.toggled.connect(self.toggle_drag_mode)
+            panning_layout.addWidget(self.drag_button, 1)
+            invisible_label_2 = QLabel("")
+            panning_layout.addWidget(invisible_label_2, 5)
+            layout.addLayout(panning_layout)  # Ajusta según tu layout
 
         # Título
         self.title_label = QLabel(self.title)
@@ -333,6 +339,7 @@ class PDFViewer(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setAlignment(Qt.AlignCenter)
+        print("Scroll area de", self.title, "inicializado")
         
         self.page_label = QLabel()
         self.page_label.setAlignment(Qt.AlignCenter)
@@ -402,6 +409,7 @@ class PDFViewer(QWidget):
             self.changes_list_widget.update_annotations_sig.connect(self.send_annotations)
 
     def label_mouse_move_event(self, event):
+        
         if self.drag_mode and self.dragging:
             delta = event.globalPos() - self.last_drag_pos
             self.last_drag_pos = event.globalPos()
@@ -414,12 +422,18 @@ class PDFViewer(QWidget):
             v_scroll.setValue(v_scroll.value() - delta.y())
 
             # Scroll del visor sincronizado
-            if hasattr(self, 'other_scroll_area') and self.other_visor:
+            if self.other_visor and hasattr(self.other_visor, 'scroll_area') and self.title == "Annotated PDF":
+                print("Setting sincronized values-------------------------")
+                print("Tipo real", self.other_visor.scroll_area)
+                print("Atributos",dir(self.other_visor.scroll_area))
+
                 other_h = self.other_visor.scroll_area.horizontalScrollBar()
                 other_v = self.other_visor.scroll_area.verticalScrollBar()
 
                 other_h.setValue(other_h.value() - delta.x())
                 other_v.setValue(other_v.value() - delta.y())
+            else:
+                print("No se pudo :(")
 
             return
 
@@ -427,8 +441,12 @@ class PDFViewer(QWidget):
         print("Drag_state",checked)
         self.drag_mode = checked
         if checked:
+            self.drag_button.setText("Disable Pan Tool")
+            self.highlighting = False
             self.setCursor(Qt.OpenHandCursor)
         else:
+            self.drag_mode = False
+            self.drag_button.setText("Enable Pan Tool")
             self.setCursor(Qt.ArrowCursor)
     
     def confirm_restart(self):
