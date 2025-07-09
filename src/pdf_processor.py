@@ -2,6 +2,7 @@
 import os
 import fitz  # PyMuPDF
 import numpy as np
+import cv2
 from PIL import Image
 
 class PDFProcessor:
@@ -42,6 +43,7 @@ class PDFProcessor:
                     
                     # Guardar imagen
                     pix.save(image_path, output="jpeg", jpg_quality=90)
+                    print("pathhhhhhhhhhhhhh",image_path)
                     image_paths.append((page_num, image_path))  # Guardar número de página junto con la ruta
                     print(f"Página {page_num+1} convertida exitosamente")
                 except Exception as e:

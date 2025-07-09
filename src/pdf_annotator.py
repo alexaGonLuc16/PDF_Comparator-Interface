@@ -41,6 +41,8 @@ class PDFAnnotator:
                 radius_pdf = radius * scale_factor
                 
                 # Crear anotación de círculo
+                print("Anotacion en", x_pdf - radius_pdf,"  ", y_pdf - radius_pdf,"  ", 
+                                            x_pdf + radius_pdf,"  ", y_pdf + radius_pdf)
                 circle = page.add_circle_annot((x_pdf - radius_pdf, y_pdf - radius_pdf, 
                                             x_pdf + radius_pdf, y_pdf + radius_pdf))
                 

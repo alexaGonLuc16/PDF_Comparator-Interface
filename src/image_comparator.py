@@ -4,10 +4,10 @@ from PIL import Image
 import cv2
 
 class ImageComparator:
-    def __init__(self, threshold=3):
+    def __init__(self, threshold = 1):
         self.threshold = threshold  # Umbral para diferencias (0-255)
-        self.min_contour_area = 5
-        self.kernel = np.ones((3, 3), np.uint8)
+        self.min_contour_area = 1
+        self.kernel = np.ones((2, 2), np.uint8)
     
     @staticmethod
     def load_image(image_input):
@@ -41,39 +41,45 @@ class ImageComparator:
             img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
         
         # Binarización (thresholding adaptativo para mayor robustez)
-        _, bin1 = cv2.threshold(img1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        _, bin2 = cv2.threshold(img2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, bin1 = cv2.threshold(img1, 220, 255, cv2.THRESH_BINARY)
+        _, bin2 = cv2.threshold(img2, 220, 255, cv2.THRESH_BINARY)
         
         # Diferencia absoluta/pixeles que cambian entre ambas imagenes
         diff = cv2.absdiff(bin1, bin2)
         
         # Operaciones morfológicas para mejorar la detección(limpiar ruido)
-        diff_processed = cv2.morphologyEx(diff, cv2.MORPH_OPEN, self.kernel)
-        diff_processed = cv2.dilate(diff_processed, self.kernel, iterations=1)
-        
+        diff_processed = cv2.dilate(diff, self.kernel, iterations = 1)
+
+        cv2.imshow("Differencias pag 1", diff_processed)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        cv2.imwrite("pag8.png", diff_processed)
+
         # Encontrar contornos significativos
-        contours, _ = cv2.findContours(diff_processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(diff_processed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         significant_contours = [c for c in contours if cv2.contourArea(c) >= self.min_contour_area]
 
         # Extraer coordenadas de los contornos encontrados
         diff_coords = []
         img2_color =  img2
 
-        if len(significant_contours) < 90:
-
-            for contour in significant_contours:
-                for point in contour:
-                    x, y = point[0]  # Obtener coordenadas (x, y)
-                    diff_coords.append((x, y))
-            
-            # Resaltar cambios en la imagen original (en color rojo)
-            if len(img2.shape) == 2:  # Si la imagen de entrada era B/N, la convertimos a color para el resaltado
-                img2_color = cv2.cvtColor(img2, cv2.COLOR_GRAY2BGR)
-            else:
-                img2_color = img2.copy()
+        #if len(significant_contours) < 1000:
+        print("Contours", len(contours))
+        print("Significant contours", len(significant_contours))
+        for contour in significant_contours:
+            for point in contour:
+                x, y = point[0]  # Obtener coordenadas (x, y)
+                diff_coords.append((x, y))
                 
-            cv2.drawContours(img2_color, significant_contours, -1, (0, 0, 255), 2)
+        # Resaltar cambios en la imagen original (en color rojo)
+        if len(img2.shape) == 2:  # Si la imagen de entrada era B/N, la convertimos a color para el resaltado
+            img2_color = cv2.cvtColor(img2, cv2.COLOR_GRAY2BGR)
+        else:
+            img2_color = img2.copy()
             
+        cv2.drawContours(img2_color, significant_contours, -1, (0, 0, 255), 2)
+        
             # Devolver coordenadas de diferencias + imagen resaltada
         return diff_coords, img2_color, img1.shape
     
