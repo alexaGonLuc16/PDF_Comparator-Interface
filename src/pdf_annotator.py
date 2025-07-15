@@ -12,53 +12,39 @@ class PDFAnnotator:
     def add_circle_annotations(self, input_pdf, circles_by_page, output_pdf=None, dpi=300):
         """
         Añade círculos como anotaciones al PDF.
-        
-        Args:
-            input_pdf: Ruta al PDF original
-            circles_by_page: Diccionario {num_página: [(x, y, radio), ...]}
-            output_pdf: Ruta donde guardar el PDF anotado
-            dpi: DPI usados para la conversión a imagen (para escalar coordenadas)
         """
         if output_pdf is None:
             base_name = os.path.basename(input_pdf)
             output_pdf = os.path.join(self.output_dir, f"annotated_{base_name}")
-            self.input_pdf = input_pdf
-        # Abrir documento
+
+        # Asegúrate de que output_pdf no sea igual a input_pdf
+        if os.path.abspath(output_pdf) == os.path.abspath(input_pdf):
+            base_name = os.path.basename(input_pdf)
+            output_pdf = os.path.join(self.output_dir, f"annotated_{base_name}")
+            print(f"Guardando anotaciones en un nuevo archivo: {output_pdf}")
+
         doc = fitz.open(input_pdf)
-        
-        # Factor de escala para convertir de coordenadas de imagen a PDF
         scale_factor = 72 / dpi
-        
-        # Para cada página con círculos
+
         for page_num, circles in circles_by_page.items():
-    
             page = doc[int(page_num)]
-            
             for x, y, radius in circles:
-                # Escalar coordenadas
                 x_pdf = x * scale_factor
                 y_pdf = y * scale_factor
                 radius_pdf = radius * scale_factor
-                
-                # Crear anotación de círculo
-                print("Anotacion en", x_pdf - radius_pdf,"  ", y_pdf - radius_pdf,"  ", 
-                                            x_pdf + radius_pdf,"  ", y_pdf + radius_pdf)
-                circle = page.add_circle_annot((x_pdf - radius_pdf, y_pdf - radius_pdf, 
-                                            x_pdf + radius_pdf, y_pdf + radius_pdf))
-                
-                # Configurar propiedades
+                circle = page.add_circle_annot((
+                    x_pdf - radius_pdf, y_pdf - radius_pdf,
+                    x_pdf + radius_pdf, y_pdf + radius_pdf
+                ))
                 circle.set_border(width=2)
-                circle.set_colors(stroke=(1, 0, 0))  # Rojo
+                circle.set_colors(stroke=(1, 0, 0))
                 circle.update(opacity=0.7)
-                
-                # Hacer la anotación toggle-able
-                circle.set_flags(0)  # No ocultar por defecto
-        
-        # Guardar documento
+                circle.set_flags(0)
+
         doc.save(output_pdf)
         doc.close()
-        
         return output_pdf
+
     '''            
     def save_circles_to_json(self, circles_by_page, output_path):
         """Guarda la información de los círculos en un archivo JSON."""

@@ -1,6 +1,9 @@
 # main.py
 import os
 import sys
+import fitz
+import cv2
+import img2pdf
 from PyQt5.QtWidgets import QApplication
 import argparse
 from src.ui.main_window import MainWindow
@@ -42,6 +45,7 @@ except Exception as e:
     sys.exit(1)
 
 def process_command_line():
+    print("EJECUTANDO FUNCIOOOOON")
     """Procesa los PDFs desde la línea de comandos"""
     parser = argparse.ArgumentParser(description='Herramienta para comparar y destacar diferencias entre dos PDFs')
     parser.add_argument('data\input\original.pdf', help='Ruta al PDF original')
@@ -68,13 +72,32 @@ def process_command_line():
     print("Comparando imágenes y encontrando diferencias...")
     circles_by_page = {}
     
+    #---
+    output_pdf_path = os.path.join(OUTPUT_DIR, f"processed_{os.path.basename(args.pdf2)}")
+    # Abrir el PDF una sola vez fuera del bucle
+    #---
+    doc = fitz.open(args.pdf2)
+
     for i, (img1, img2) in enumerate(zip(images1, images2)):
-    #for i, (img1, img2) in selected_pages:
         print(f"Procesando página {i+1}/{len(images1)}...")
         
         # Comparar imágenes y obtener coordenadas de diferencias
-        diff_coords, _, _ = image_comparator.find_differences(img1, img2)
+        diff_coords, processed_img, _ = image_comparator.find_differences(img1, img2)
         
+        # --- Guardar processed_img ---
+        processed_img_path = os.path.join(TEMP_DIR, f"page_{i+1}_processed.png")
+        cv2.imwrite(processed_img_path, processed_img)
+
+            # --- Convertir a PDF ---
+        processed_pdf_path = os.path.join(TEMP_DIR, f"page_{i+1}_processed.pdf")
+        with open(processed_pdf_path, "wb") as f:
+            f.write(img2pdf.convert(processed_img_path))
+
+        # --- Reemplazar página ---
+        replacement = fitz.open(processed_pdf_path)
+        doc[i] = replacement[0]  # Sustituye la página i con la nueva
+        replacement.close()
+
         # Paso 4: Agrupar diferencias en círculos
         if diff_coords:
             circles = circle_detector.group_points_into_circles(diff_coords)
@@ -83,16 +106,21 @@ def process_command_line():
             if circles:
                 circles_by_page[str(i)] = circles
     
+    # Guardar PDF final reemplazado
+    doc.save(output_pdf_path)
+    print("-----------------------------------------------------------------------------------------------------------outputdir!!!!!!!!!!!!!!!!!!!!!!!!!!!!",output_pdf_path)
+    doc.close()
+
     # Paso 5: Anotar el PDF con círculos
     print("Añadiendo anotaciones al PDF...")
-    output_pdf = args.output if args.output else os.path.join(OUTPUT_DIR, f"annotated_{os.path.basename(args.pdf2)}")
-    pdf_annotator.add_circle_annotations(args.pdf2, circles_by_page, output_pdf, dpi=args.dpi)
+    output_pdf_path = args.output if args.output else os.path.join(OUTPUT_DIR, f"annotated_{os.path.basename(args.pdf2)}")
+    pdf_annotator.add_circle_annotations(args.pdf2, circles_by_page, output_pdf_path, dpi=args.dpi)
     
     # Guardar información de círculos para posible uso posterior
     pdf_annotator.save_changes_to_json(pdf_annotator.input_pdf ,circles_by_page)
     
-    print(f"Proceso completado. PDF anotado guardado en: {output_pdf}")
-    return output_pdf
+    print(f"Proceso completado. PDF anotado guardado en: {output_pdf_path}")
+    return output_pdf_path
 
 if __name__ == "__main__":
     while True:

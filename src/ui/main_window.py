@@ -15,6 +15,10 @@ from src.image_comparator import ImageComparator
 from src.circle_detector import CircleDetector
 from src.pdf_annotator import PDFAnnotator
 from src.ui.pdf_viewer import PDFViewer, ChangesListWidget
+import cv2
+import img2pdf
+from PIL import Image
+
 # Importar componentes de la aplicación
 
 RESTART_CODE = 1001  # Código especial para reinicio
@@ -50,6 +54,10 @@ class WorkerThread(QThread):
         source_pdf1 = self.pdf1
         source_pdf2 = self.pdf2
 
+        # Paso 1: Abrir el PDF original (pdf2) para reemplazar
+        output_pdf_path = os.path.join(output_dir, f"processed_{os.path.basename(self.pdf2)}")
+        doc = fitz.open(source_pdf2)
+
         # Paso 2: Convertir PDFs a imágenes (solo páginas seleccionadas)
         self.progress.emit(20)
         images1 = pdf_processor.pdf_to_images(source_pdf1, dpi=self.dpi, selected_pages=self.selected_pages)
@@ -62,20 +70,45 @@ class WorkerThread(QThread):
         circles_by_page = {}
         
         total_pages = min(len(images1), len(images2))
+
         for i, (img1, img2) in enumerate(zip(images1, images2)):
-            # Comparar imágenes y obtener coordenadas de diferencias
-            diff_coords,_, image_dim  = image_comparator.find_differences(img1, img2)
+            # Comparar imágenes y obtener coordenadas de diferencias (V2 con respecto a la V1)
+            diff_coords, processed_img , image_dim  = image_comparator.find_differences(img1, img2)
+            #diff_coords, processed_img , image_dim  = image_comparator.find_differences(img1, img2)
+
             global page_height 
             global page_width
 
             page_height = image_dim[0]
             page_width = image_dim[1]
 
+             # --- Guardar processed_img ---
+            processed_img_path = os.path.join(temp_dir, f"page_{self.selected_pages[i]}_processed.png")
+            #cv2.imwrite(processed_img_path, processed_img)
+
+            # Usa PIL para guardar con DPI
+            im_pil = Image.fromarray(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB))
+            im_pil.save(f"highlighted_res{self.selected_pages[i]}.png", dpi=(300, 300))  # O el DPI que uses en tu PDF
+
+            page = doc[self.selected_pages[i]]
+    
+            # Abrir imagen para saber dimensiones en px
+            img = Image.open(f"highlighted_res{self.selected_pages[i]}.png")
+            width_px, height_px = img.size
+
+            # Convertir px a puntos (1 inch = 72 pt)
+            dpi = 300  # Debe coincidir con tu imagen
+            width_pt = width_px * 72 / dpi
+            height_pt = height_px * 72 / dpi
+
+            # Insertar imagen con el rect exacto
+            rect = fitz.Rect(0, 0, width_pt, height_pt)
+            page.insert_image(rect, filename=f"highlighted_res{self.selected_pages[i]}.png")
+
             # Paso 4: Agrupar diferencias en círculos
             if diff_coords:
                 circles = circle_detector.group_points_into_circles(diff_coords)
-                circles = circle_detector.merge_overlapping_circles(circles)
-                
+                circles = circle_detector.merge_overlapping_circles(circles)                
                 
                 if circles:
                     if self.selected_pages != None:
@@ -86,16 +119,23 @@ class WorkerThread(QThread):
             # Actualizar progreso
             progress = 50 + int((i + 1) / total_pages * 40)
             self.progress.emit(progress)
-        
-        # Paso 5: Anotar el PDF con círculos
-        # Usar el PDF2 reparado si está disponible
-        pdf_annotator.add_circle_annotations(source_pdf2, circles_by_page, self.output_path, dpi=self.dpi)
+
+        # Guardar el PDF con páginas reemplazadas
+        doc.save(output_pdf_path)
+        doc.close()
+
+        #-------------------- Imprimiendo paths
+        print("output pdf Path",output_pdf_path)
+        print("source Path",source_pdf2)
+
+        # Paso 5: Anotar sobre el PDF reemplazado
+        pdf_annotator.add_circle_annotations(input_pdf = output_pdf_path, circles_by_page = circles_by_page, output_pdf = output_pdf_path, dpi=self.dpi)
         
         # Guardar información de círculos para uso en la UI
         pdf_annotator.save_changes_to_json(self.pdf1, circles_by_page)
         
         self.progress.emit(100)
-        self.finished.emit(self.output_path, circles_by_page)
+        self.finished.emit(output_pdf_path, circles_by_page)
         #habilitar click event para descarte de circulos
 
 class MainWindow(QMainWindow):
@@ -415,7 +455,9 @@ class MainWindow(QMainWindow):
     def load_pdf_for_comparison(self, pdf1_path, pdf2_path):
         """Carga dos PDFs para comparación."""
         # Cargar PDFs en los visores
+        print("Problem here 450")
         self.original_viewer.load_pdf(pdf1_path)
+        print("Problem here 452")
         self.annotated_viewer.load_pdf(pdf2_path)
         
         # Cambiar a la pestaña de comparación
@@ -687,7 +729,9 @@ class MainWindow(QMainWindow):
             
             # Cargar el PDF original si no está cargado
             if self.pdf1_file and not self.original_viewer.document:
+                print("Problem here 724")
                 self.original_viewer.load_pdf(self.pdf1_file)
+    
                 # Sincronizar la página actual
                 self.original_viewer.current_page = self.annotated_viewer.current_page
                 self.original_viewer.render_current_page()
@@ -756,6 +800,7 @@ class MainWindow(QMainWindow):
             self.pdf1_path.setText(os.path.basename(file_path))
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             output_dir = os.path.join(base_dir, 'data', 'output')
+            print("Problem here 795")
             self.original_viewer.load_pdf(file_path)
             self.update_compare_button()
             self.update_apply_json_button()
@@ -892,10 +937,12 @@ class MainWindow(QMainWindow):
         self.circles_by_page = circles_by_page
         
         # Cargar PDF anotado
+        print("Problem here 932")
         self.annotated_viewer.load_pdf(output_path, self.pdf1_file)
         
         # Si estamos en modo lado a lado, actualizar también el visor original
         if self.side_by_side_mode and self.original_viewer:
+            print("Problem here 937")
             self.original_viewer.load_pdf(self.pdf1_file)
             self.original_viewer.current_page = self.annotated_viewer.current_page
             self.original_viewer.render_current_page()
