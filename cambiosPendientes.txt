@@ -1,4 +1,0 @@
--- arreglar que cuando desactives la hand tool se ponga la flecha de cursor
---Asegurar el subrayado al desactivar hand tool
---Arreglar colocacion horizontal de la marca de agua(si se guarda en el pdf pero no se aplica ese cambio al cargar el json)1
---arreglar centrado del navigation changes

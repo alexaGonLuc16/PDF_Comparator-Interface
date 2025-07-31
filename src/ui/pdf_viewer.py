@@ -1,10 +1,11 @@
 import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QScrollArea, QSizePolicy, QListWidget, 
-                            QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem, QToolTip, QRubberBand, QFileDialog, QSlider, QDialog, QMessageBox)
+                            QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem, QToolTip, QRubberBand, QFileDialog, QSlider, QDialog, QMessageBox, QGraphicsDropShadowEffect)
 from PyQt5.QtGui import QPixmap, QImage, QKeyEvent, QColor, QBrush
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal, QEvent, QPoint, QRect, QSize
 from src.pdf_rotation import PDFRotationUIHandler
+from PyQt5.QtGui import QColor
 from math import sqrt
 import inspect
 
@@ -83,6 +84,7 @@ class ChangesListWidget(QWidget):
         self.formatted_circles_by_page = {}
         self.changes_description = {} #lsta con descripciones de los cambios
         self.init_ui()
+        
     
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -264,6 +266,7 @@ class ChangesListWidget(QWidget):
             if page_num in self.formatted_circles_by_page and change_idx < len(self.formatted_circles_by_page[page_num]):
                 self.formatted_circles_by_page[page_num][change_idx]["description"] = new_text
                 
+    
 class PDFViewer(QWidget):
     circle_clicked = pyqtSignal(int, dict,bool)  # Señal para comunicar clics
     update_annotations = pyqtSignal(int, list)  # Página, cambios
@@ -312,6 +315,16 @@ class PDFViewer(QWidget):
         if self.title == "Annotated PDF":
             self.reload_button = QPushButton("Compare new schematic")
             restart_layout = QHBoxLayout()
+            self.reload_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #d9ecfa;
+                    border: 1px solid #90c8f0;
+                }
+                QPushButton:pressed {
+                    background-color: #c0e0f8;
+                    border: 1px solid #70b9ec;
+                }
+            """)
             
             restart_layout.addWidget(self.reload_button, 1)
             invisible_label = QLabel("")
@@ -404,6 +417,21 @@ class PDFViewer(QWidget):
             print("Inicializando lista de cambios para el PDF Anotado")
             print("------------------------------------------------------------------------------------")
             self.changes_list_widget = ChangesListWidget(self)
+            self.changes_list_widget.setStyleSheet("""
+                ChangesListWidget {
+                    background-color: #f0f4f8; /* Color interior diferente al fondo global */
+                    border: 1px solid #dcdcdc;
+                    border-radius: 10px;
+                    padding: 10px;
+                }
+                QTreeWidget {
+                    background-color: #ffffff;
+                    border-radius: 6px;
+                    border: 1px solid #e0e0e0;
+                }           
+            """
+            )
+            self.apply_shadow(self.changes_list_widget)
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
             self.changes_list_widget.circle_selected.connect(self.modify_annotations) #modify annotations returns a list
             self.changes_list_widget.update_annotations_sig.connect(self.send_annotations)
@@ -1472,3 +1500,11 @@ class PDFViewer(QWidget):
         """Restablece el zoom al 100%."""
         self.zoom_factor = 1.0
         self.render_current_page()
+
+    def apply_shadow(self, widget, blur=15, x_offset=0, y_offset=2, alpha=40):
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(blur)  # Difuminado de la sombra
+        shadow.setXOffset(x_offset)  # Sombra horizontal
+        shadow.setYOffset(y_offset)  # Sombra vertical
+        shadow.setColor(QColor(0, 0, 0, alpha))  # Color negro con transparencia
+        widget.setGraphicsEffect(shadow)

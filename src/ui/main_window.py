@@ -6,6 +6,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
 from src.pdf_rotation import PDFRotationUIHandler, RotationDialog
+from PyQt5.QtWidgets import QGraphicsDropShadowEffect
+from PyQt5.QtGui import QColor
 
 import fitz  # PyMuPDF - importante para la función toggle_circle_visibility
 
@@ -16,7 +18,6 @@ from src.circle_detector import CircleDetector
 from src.pdf_annotator import PDFAnnotator
 from src.ui.pdf_viewer import PDFViewer, ChangesListWidget
 import cv2
-import img2pdf
 from PIL import Image
 
 # Importar componentes de la aplicación
@@ -65,60 +66,55 @@ class WorkerThread(QThread):
         images2 = pdf_processor.pdf_to_images(source_pdf2, dpi=self.dpi, selected_pages=self.selected_pages)
         self.progress.emit(50)
         
-        # El resto del código sigue igual...
         # Paso 3: Comparar imágenes y obtener diferencias
         circles_by_page = {}
         
         total_pages = min(len(images1), len(images2))
+        if self.selected_pages == None:
+            self.selected_pages = list(range(total_pages))
 
         for i, (img1, img2) in enumerate(zip(images1, images2)):
             # Comparar imágenes y obtener coordenadas de diferencias (V2 con respecto a la V1)
-            diff_coords, processed_img , image_dim  = image_comparator.find_differences(img1, img2)
-            #diff_coords, processed_img , image_dim  = image_comparator.find_differences(img1, img2)
+            diff_coords_added, processed_img , image_dim = image_comparator.find_differences(img1, img2)
+            if diff_coords_added != None:
+                global page_height 
+                global page_width
 
-            global page_height 
-            global page_width
+                page_height = image_dim[0]
+                page_width = image_dim[1]
 
-            page_height = image_dim[0]
-            page_width = image_dim[1]
+                im_pil = Image.fromarray(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB))
+                im_pil.save(f"highlighted_result.png", dpi=(300, 300))  # O el DPI que uses en tu PDF
 
-             # --- Guardar processed_img ---
-            processed_img_path = os.path.join(temp_dir, f"page_{self.selected_pages[i]}_processed.png")
-            #cv2.imwrite(processed_img_path, processed_img)
+                page = doc[self.selected_pages[i]]
+        
+                # Abrir imagen para saber dimensiones en px
+                img = Image.open(f"highlighted_result.png")
+                width_px, height_px = img.size
 
-            # Usa PIL para guardar con DPI
-            im_pil = Image.fromarray(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB))
-            im_pil.save(f"highlighted_res{self.selected_pages[i]}.png", dpi=(300, 300))  # O el DPI que uses en tu PDF
+                # Convertir px a puntos (1 inch = 72 pt)
+                dpi = 300  # Debe coincidir con tu imagen
+                width_pt = width_px * 72 / dpi
+                height_pt = height_px * 72 / dpi
 
-            page = doc[self.selected_pages[i]]
-    
-            # Abrir imagen para saber dimensiones en px
-            img = Image.open(f"highlighted_res{self.selected_pages[i]}.png")
-            width_px, height_px = img.size
+                # Insertar imagen con el rect exacto
+                rect = fitz.Rect(0, 0, width_pt, height_pt)
+                page.insert_image(rect, filename=f"highlighted_result_red.png")
 
-            # Convertir px a puntos (1 inch = 72 pt)
-            dpi = 300  # Debe coincidir con tu imagen
-            width_pt = width_px * 72 / dpi
-            height_pt = height_px * 72 / dpi
+                # Paso 4: Agrupar diferencias en círculos
+                if diff_coords_added:
+                    circles = circle_detector.group_points_into_circles(diff_coords_added)
+                    circles = circle_detector.merge_overlapping_circles(circles)                
+                    
+                    if circles:
+                        if self.selected_pages != None:
+                            circles_by_page[self.selected_pages[i]] = circles
+                        else:
+                            circles_by_page[i] = circles
 
-            # Insertar imagen con el rect exacto
-            rect = fitz.Rect(0, 0, width_pt, height_pt)
-            page.insert_image(rect, filename=f"highlighted_res{self.selected_pages[i]}.png")
-
-            # Paso 4: Agrupar diferencias en círculos
-            if diff_coords:
-                circles = circle_detector.group_points_into_circles(diff_coords)
-                circles = circle_detector.merge_overlapping_circles(circles)                
-                
-                if circles:
-                    if self.selected_pages != None:
-                        circles_by_page[self.selected_pages[i]] = circles
-                    else:
-                        circles_by_page[i] = circles
-
-            # Actualizar progreso
-            progress = 50 + int((i + 1) / total_pages * 40)
-            self.progress.emit(progress)
+                # Actualizar progreso
+                progress = 50 + int((i + 1) / total_pages * 40)
+                self.progress.emit(progress)
 
         # Guardar el PDF con páginas reemplazadas
         doc.save(output_pdf_path)
@@ -148,20 +144,159 @@ class MainWindow(QMainWindow):
         # Widget central
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
+        central_widget.setObjectName("MyContainer")
+        central_widget.setStyleSheet("""
+            #MyContainer {
+                background-color: #0047AB;
+            }
+        """)
+
+        central_widget.setStyleSheet("""
+            /* Fondo global */
+            QWidget {
+                background-color: #f4f6f8;
+                font-family: "Segoe UI", Arial;
+                font-size: 14px;
+                color: #333;
+            }
+            
+            /* QTabWidget */
+            QTabWidget::pane {
+                border: 1px solid #dcdcdc;
+                background: #ffffff;
+                border-radius: 8px;
+            }
+                                     
+            QTabBar::tab {
+                background: #eaeaea;
+                border-radius: 6px;
+                padding: 8px 14px;
+                margin: 2px;
+            }
+            QTabBar::tab:selected {
+                background: #ffffff;
+                color: #333;
+                font-weight: bold;
+            }
+
+            /* Botones claros con hover azul */
+            QPushButton {
+                background-color: #ffffff;
+                color: #333333;
+                border: 1px solid #dcdcdc;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #d9ecfa;
+                border: 1px solid #90c8f0;
+            }
+            QPushButton:pressed {
+                background-color: #c0e0f8;
+                border: 1px solid #70b9ec;
+            }
+
+            QScrollBar:vertical {
+                border: none;
+                background: #f0f4f8;
+                width: 20px;
+                margin: 0px;
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #c0c9d2;
+                border-radius: 4px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #a5b1bd;
+            }
+
+            QScrollBar:horizontal {
+                border: none;
+                background: #f0f4f8;
+                height: 20px;
+                margin: 0px;
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:horizontal {
+                background: #c0c9d2;
+                border-radius: 4px;
+                min-width: 20px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #a5b1bd;
+            }
+
+            QScrollBar::add-line, QScrollBar::sub-line {
+                background: none;
+                border: none;
+                width: 0;
+                height: 0;
+            }   
+                                     
+            QGroupBox {
+                background-color: #ffffff;
+                border: 1px solid #dcdcdc;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding: 10px;
+                font-weight: bold;
+            }
+            QGroupBox:title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 4px 10px;
+                background-color: #f4f6f8;
+                border-radius: 4px;
+                color: #333;
+            }
+
+            /* QLabel */
+            QLabel {
+                color: #333333;
+                font-size: 15px;
+            }
+                            
+            QToolBar {
+                background-color: #f4f6f8;
+                border-bottom: 1px solid #dcdcdc;
+            }
+                                     
+            QMessageBox {
+                background-color: #ffffff;
+                border-radius: 8px;
+            }
+                                     
+            QFileDialog {
+                background-color: #ffffff;
+                border-radius: 8px;
+            }
+                                
+            QVBoxLayout{
+                background-color: #ffffff;
+                border: 1px solid #dcdcdc;
+                border-radius: 10px;
+                padding: 10px;
+            }
+        """)
         
         # Layout principal
         main_layout = QVBoxLayout(central_widget)
         
         # Pestañas principales
         self.tabs = QTabWidget()
-        
+        self.apply_shadow(self.tabs)
         # Pestaña de carga/guardado JSON
-        #self.json_tab = QWidget()
         self.setup_json_tab()
-        #self.tabs.addTab(self.json_tab, "Cargar/Guardar Cambios")
 
         # Pestaña de comparación
         self.comparison_tab = QWidget()
+        self.comparison_tab.setObjectName("MyContainer")
+        
         self.setup_comparison_tab()
         self.tabs.addTab(self.comparison_tab, "Comparar PDFs")
         
@@ -215,6 +350,7 @@ class MainWindow(QMainWindow):
         self.pdf1_path = QLabel("not selected")
         self.pdf1_button = QPushButton("Upload file")
         self.pdf1_button.clicked.connect(self.select_pdf1)
+        self.apply_shadow(self.pdf1_button)
         
         pdf1_layout.addWidget(self.pdf1_label)
         pdf1_layout.addWidget(self.pdf1_path)
@@ -228,9 +364,11 @@ class MainWindow(QMainWindow):
         self.pdf1_button.clicked.connect(self.select_pdf1)
         self.pdf2_button = QPushButton("Upload PDF")
         self.pdf2_button.clicked.connect(self.select_pdf2)
+        self.apply_shadow(self.pdf2_button)
 
         self.json_button = QPushButton("Upload JSON")
         self.json_button.clicked.connect(self.load_json_file)
+        self.apply_shadow(self.json_button)
         
         pdf2_layout.addWidget(self.pdf2_label)
         pdf2_layout.addWidget(self.pdf2_path)
@@ -243,6 +381,7 @@ class MainWindow(QMainWindow):
         self.save_path = QLabel("not selected")
         self.save_button = QPushButton("Upload file")
         self.save_button.clicked.connect(self.select_save_path)
+        self.apply_shadow(self.save_button)
         
         save_layout.addWidget(self.save_label)
         save_layout.addWidget(self.save_path)
@@ -323,10 +462,12 @@ class MainWindow(QMainWindow):
         self.compare_button = QPushButton("Compare PDFs")
         self.compare_button.clicked.connect(self.start_comparison)
         self.compare_button.setEnabled(False)
+        self.apply_shadow(self.compare_button)
 
         self.apply_json_button = QPushButton("Apply JSON annotations")
         self.apply_json_button.clicked.connect(self.json_loader_ui.apply_changes)
         self.apply_json_button.setEnabled(False)
+        self.apply_shadow(self.apply_json_button)
         
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
@@ -1112,9 +1253,18 @@ class MainWindow(QMainWindow):
             print(f"Error durante la limpieza: {e}")
             event.accept()
 
+    def apply_shadow(self, widget, blur=15, x_offset=0, y_offset=2, alpha=40):
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(blur)  # Difuminado de la sombra
+        shadow.setXOffset(x_offset)  # Sombra horizontal
+        shadow.setYOffset(y_offset)  # Sombra vertical
+        shadow.setColor(QColor(0, 0, 0, alpha))  # Color negro con transparencia
+        widget.setGraphicsEffect(shadow)
+
 # Punto de entrada de la aplicación
 def main():
     app = QApplication(sys.argv)
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
