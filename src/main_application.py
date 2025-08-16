@@ -1,16 +1,14 @@
-# Integración de la carga/guardado JSON en la aplicación principal
-
-# Importaciones necesarias
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QVBoxLayout, QWidget, QSplitter, QHBoxLayout, QLabel, QGroupBox, QPushButton, QRadioButton, QButtonGroup, QSpinBox, QLineEdit, QProgressBar, QCheckBox
 from PyQt5.QtCore import Qt
 import sys
 import os
 
-# Importar componentes de la aplicación
+# Application components
 from ui.pdf_viewer import PDFViewer
 from json_loader_ui import JsonLoaderUI
 from image_comparator import ImageComparator
 from pdf_annotator import PDFAnnotator
+from pdf_rotation import PDFRotationUIHandler
 
 class PDFComparatorApp(QMainWindow):
     def __init__(self):
@@ -18,42 +16,42 @@ class PDFComparatorApp(QMainWindow):
         self.setWindowTitle("PDF Comparator")
         self.setGeometry(100, 100, 1200, 800)
         
-        # Widget central
+        # Central Widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Layout principal
+        # Main Layout
         main_layout = QVBoxLayout(central_widget)
         
-        # Pestañas principales
+        # Main tabs
         self.tabs = QTabWidget()
         
-        # Pestaña de comparación
+        # Comparison tab
         self.comparison_tab = QWidget()
         self.setup_comparison_tab()
         self.tabs.addTab(self.comparison_tab, "Comparar PDFs")
         
-        # Pestaña de carga/guardado JSON
+        # Loading/saving JSON tab
         self.json_tab = QWidget()
         self.setup_json_tab()
         self.tabs.addTab(self.json_tab, "Cargar/Guardar Cambios")
         
-        # Agregar pestañas al layout principal
+        # Add tabs to the main layout
         main_layout.addWidget(self.tabs)
     
     def setup_comparison_tab(self):
         self.main_layout = QVBoxLayout(self.comparison_tab)
         
-        #Crear un widget contenedor para la configuracion
+        #Create a container widget for the configuration
         self.config_container = QWidget()
-        # Área de configuración
+        # Configuration Area
         self.config_layout = QHBoxLayout()
         
-        # Selección de archivos
+        # File Selection
         file_group = QGroupBox("Choose the files")
         file_layout = QVBoxLayout(file_group)
         
-        # PDF original
+        # Original PDF 
         pdf1_layout = QHBoxLayout()
         self.pdf1_label = QLabel("Original PDF:")
         self.pdf1_path = QLabel("not selected")
@@ -64,7 +62,7 @@ class PDFComparatorApp(QMainWindow):
         pdf1_layout.addWidget(self.pdf1_path)
         pdf1_layout.addWidget(self.pdf1_button)
         
-        # PDF modificado
+        # Modified PDF
         pdf2_layout = QHBoxLayout()
         self.pdf2_label = QLabel("Modified version:")
         self.pdf2_path = QLabel("not selected")
@@ -75,7 +73,7 @@ class PDFComparatorApp(QMainWindow):
         pdf2_layout.addWidget(self.pdf2_path)
         pdf2_layout.addWidget(self.pdf2_button)
         
-        # Guardar como
+        # Save as
         save_layout = QHBoxLayout()
         self.save_label = QLabel("Save as:")
         self.save_path = QLabel("not selected")
@@ -90,7 +88,7 @@ class PDFComparatorApp(QMainWindow):
         file_layout.addLayout(pdf2_layout)
         file_layout.addLayout(save_layout)
         
-        # Parámetros
+        # Parameters
         param_group = QGroupBox("Parameters")
         param_layout = QVBoxLayout(param_group)
         
@@ -102,7 +100,7 @@ class PDFComparatorApp(QMainWindow):
         self.dpi_spin.setValue(300)
         dpi_layout.addWidget(self.dpi_spin)
         
-        # Umbral
+        # Threshold
         threshold_layout = QHBoxLayout()
         threshold_layout.addWidget(QLabel("Threshold:"))
         self.threshold_spin = QSpinBox()
@@ -154,7 +152,7 @@ class PDFComparatorApp(QMainWindow):
 
         param_layout.addLayout(page_select_layout)
 
-        # Botones de acción
+        # Action buttons
         action_group = QGroupBox("Actions")
         action_layout = QVBoxLayout(action_group)
         
@@ -177,21 +175,21 @@ class PDFComparatorApp(QMainWindow):
         self.config_layout.addWidget(param_group, 2)
         self.config_layout.addWidget(action_group, 1)
 
-        #anadir contenedor al layout principal
+        # Add container to the main layout
         self.main_layout.addWidget(self.config_container)
         
-        # Área de visualización
+        # Visualization area
         self.view_layout = QHBoxLayout()
-        # Visor original (izquierda)
+        # Original viewer (left)
         self.original_viewer = PDFViewer("Original PDF")
 
-        # Visor anotado (derecha)
+        # Annotated viewer (right)
         self.annotated_viewer = PDFViewer("Annotated PDF")
         self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer, title = "Rotate Annotated PDF")
 
         self.rotation_original = PDFRotationUIHandler(self, self.original_viewer, self.rotation_handler, title = "Rotate Original PDF")
          
-        # Contenedor del visor anotado con el checkbox de círculos
+        # Container of the annotated viewer with the circle checkbox
         self.annotated_container = QWidget()
         self.annotated_layout = QVBoxLayout(self.annotated_container)
         self.annotated_layout.setContentsMargins(0, 0, 0, 0)
@@ -203,106 +201,105 @@ class PDFComparatorApp(QMainWindow):
         self.toggle_circles.stateChanged.connect(self.toggle_circle_visibility)
 
         self.toggle_side_by_side = QCheckBox("Side by side view")
-        self.toggle_side_by_side.setChecked(False) #por defecto desactivado
+        self.toggle_side_by_side.setChecked(False) #disabled by default
         self.toggle_side_by_side.stateChanged.connect(self.toggle_side_by_side_mode)
 
         self.rotate_both_pdfs = QCheckBox("Rotate both pdfs")
-        self.rotate_both_pdfs.setChecked(False) #por defecto desactivado
+        self.rotate_both_pdfs.setChecked(False) #disabled by default
         self.rotate_both_pdfs.stateChanged.connect(self.rotate_both)
 
-        # Añadir el checkbox al layout después de toggle_circles
+        # Add the checkbox to the layout after toggle_circles
         checkbox_layout = QHBoxLayout()
         checkbox_layout.addWidget(self.toggle_circles)
         checkbox_layout.addWidget(self.toggle_side_by_side)
         checkbox_layout.addWidget(self.rotate_both_pdfs)
         self.annotated_layout.addLayout(checkbox_layout)
 
-        # Contenedor para la lista de cambios (derecha)
+        # Container for the change list (right)
         self.changes_container = QWidget()
         changes_layout = QVBoxLayout(self.changes_container)
         changes_layout.setContentsMargins(5, 5, 5, 5)
         
-        # Título de la lista de cambios
+        # Title of the change list
         changes_title = QLabel("Detected Changes")
         changes_title.setAlignment(Qt.AlignCenter)
         changes_title.setStyleSheet("font-size: 11pt; font-weight: bold;")
         
         changes_layout.addWidget(changes_title)
 
-        #anadir solo el visor anotado por defecto
-        # Configurar la vista
-        self.view_layout.addWidget(self.annotated_container,5)  # PDF visor ocupa 5/6 de la pantalla
-        self.view_layout.addWidget(self.changes_container, 1)  # Lista de cambios ocupa 1/6 de la pantalla
+        # Configure view
+        self.view_layout.addWidget(self.annotated_container,5)  # PDF viewer occupies 5/6 of the screen
+        self.view_layout.addWidget(self.changes_container, 1)  # Change list takes up 1/6 of the screen
         
-        # Añadir layouts al layout principal
+        # Add layouts to the main layout
         self.main_layout.addLayout(self.config_layout, 1)
         self.main_layout.addLayout(self.view_layout, 4)
         
-        # Variables de estado
+        # State variables
         self.pdf1_file = None
         self.pdf2_file = None
         self.output_file = None
         self.circles_by_page = {}
         self.side_by_side_mode = False
 
-        # Flag para habilitar circle_click event
+        # Flag to enable circle_click event
         self.circle_clicked_flag = False
         self.annotated_viewer.circle_clicked.connect(self.handle_circle_click)
         self.annotated_viewer.update_annotations.connect(self.update_annotations)
-        self.annotated_viewer.set_clicks_enabled(False)  # inicialmente deshabilitado
+        self.annotated_viewer.set_clicks_enabled(False) 
         
         #connect signal to update circle changes
         self.rotation_handler.save_doc_signal.connect(self.update_annotations_by_page_json)
         self.rotation_original.save_doc_signal.connect(self.update_annotations_by_page_json)
 
-        print("UI de MainWindow inicializada")
+        print("MainWindow UI initialized")
         
     def setup_json_tab(self):
-        """Configura la pestaña de carga/guardado de JSON."""
+        """Configure the JSON load/save tab."""
         layout = QVBoxLayout(self.json_tab)
         
-        # Crear un divisor horizontal
+        # Create a horizontal divider
         splitter = QSplitter(Qt.Horizontal)
         
-        # Panel izquierdo: Visor de PDF
+        # Left panel: PDF viewer
         self.json_pdf_viewer = PDFViewer("PDF con Cambios Cargados")
         
-        # Panel derecho: Controles de JSON
+        # Right panel: JSON controls
         json_control_widget = QWidget()
         self.json_loader_ui = JsonLoaderUI(self.json_pdf_viewer)
         
-        # Configurar layout para el panel de control
+        # Set up layout for the control panel
         json_control_layout = QVBoxLayout(json_control_widget)
         json_control_layout.addWidget(self.json_loader_ui)
         
-        # Agregar paneles al divisor
+        # Add panels to the divider
         splitter.addWidget(self.json_pdf_viewer)
         splitter.addWidget(json_control_widget)
         
-        # Configurar ancho relativo (70% visor, 30% controles)
+        # Set relative width (70% viewer, 30% controls)
         splitter.setSizes([700, 300])
         
-        # Agregar divisor al layout
+        # Add divider to the layout
         layout.addWidget(splitter)
     
     def load_pdf_for_comparison(self, pdf1_path, pdf2_path):
-        """Carga dos PDFs para comparación."""
-        # Cargar PDFs en los visores
+        """Upload two PDFs for comparison."""
+        # Load PDFs in the viewers
         self.original_viewer.load_pdf(pdf1_path)
         self.annotated_viewer.load_pdf(pdf2_path)
         
-        # Cambiar a la pestaña de comparación
+        # Switch to the comparison tab
         self.tabs.setCurrentIndex(0)
     
     def load_pdf_with_json(self, pdf_path, json_path):
-        """Carga un PDF con sus cambios desde un archivo JSON."""
-        # Esta función podría ser llamada desde fuera de la clase
+        """Upload a PDF with its changes from a JSON file."""
+        # This function could be called from outside the class.
         self.json_loader_ui.pdf_path = pdf_path
         self.json_loader_ui.json_path = json_path
         self.json_loader_ui.update_load_status()
         self.json_loader_ui.apply_changes()
         
-        # Cambiar a la pestaña de JSON
+        # Switch to the JSON tab
         self.tabs.setCurrentIndex(1)
 
 # Punto de entrada de la aplicación

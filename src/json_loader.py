@@ -1,14 +1,15 @@
 # json_loader.py
 import json
 import os
+import glob
 import fitz  # PyMuPDF
 from PyQt5.QtCore import pyqtSignal, QObject
 
 class PDFJsonLoader(QObject):
-    extracted_changes_signal = pyqtSignal(dict)  # Página, cambio, activado
+    extracted_changes_signal = pyqtSignal(dict)  # Page, change, enabled
 
     """
-    Clase para cargar y aplicar cambios guardados en un archivo JSON a un PDF.
+    Class to load and apply saved changes from a JSON file to a PDF.
     """
     def __init__(self):
         super().__init__()
@@ -16,25 +17,25 @@ class PDFJsonLoader(QObject):
         self.pdf_path = None
     
     def load_json(self, json_path):
-        """Carga los datos desde un archivo JSON."""
+        """Loads data from a JSON file."""
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 self.json_data = json.load(f)
             return True
         except Exception as e:
-            print(f"Error al cargar el archivo JSON: {e}")
+            print(f"Error loading JSON file: {e}")
             return False
     
     def extract_changes_by_page(self):
-        """Extrae los cambios por página del JSON cargado."""
+        """Extracts changes per page from the loaded JSON."""
         if not self.json_data:
             return {}
         
         self.changes_by_page = {}
         
-        # Recorrer las páginas en el JSON
+        # Iterate over pages in the JSON
         for page_num, page_data in self.json_data.get("pages", {}).items():
-            # Convertir a entero ya que las claves JSON son strings
+            # Convert to integer since JSON keys are strings
             page_num_int = int(page_num)
             changes = page_data.get("changes", [])
             
@@ -45,15 +46,15 @@ class PDFJsonLoader(QObject):
         return self.changes_by_page
     
     def extract_highlights_by_page(self):
-        """Extrae los highlights por página del JSON cargado."""
+        """Extracts highlights per page from the loaded JSON."""
         if not self.json_data:
             return {}
         
         highlights_by_page = {}
         
-        # Recorrer las páginas en el JSON
+        # Iterate over pages in the JSON
         for page_num, page_data in self.json_data.get("pages", {}).items():
-            # Convertir a entero ya que las claves JSON son strings
+            # Convert to integer since JSON keys are strings
             page_num_int = int(page_num)
             highlights = page_data.get("highlights", [])
             
@@ -63,15 +64,15 @@ class PDFJsonLoader(QObject):
         return highlights_by_page
     
     def extract_rotations_by_page(self):
-        """Extrae las rotaciones por página del JSON cargado."""
+        """Extracts page rotations from the loaded JSON."""
         if not self.json_data:
             return {}
         
         rotations_by_page = {}
         
-        # Recorrer las páginas en el JSON
+        # Iterate over pages in the JSON
         for page_num, page_data in self.json_data.get("pages", {}).items():
-            # Convertir a entero ya que las claves JSON son strings
+            # Convert to integer since JSON keys are strings
             page_num_int = int(page_num)
             rotation = page_data.get("rotation", 0)
             
@@ -81,15 +82,15 @@ class PDFJsonLoader(QObject):
         return rotations_by_page
     
     def extract_watermarks(self):
-        """Extrae la información de marcas de agua del JSON cargado."""
+        """Extracts watermark information from the loaded JSON."""
         if not self.json_data:
             return {}
         
         watermarks_by_page = {}
         
-        # Recorrer las páginas en el JSON
+        # Iterate over pages in the JSON
         for page_num, page_data in self.json_data.get("pages", {}).items():
-            # Convertir a entero ya que las claves JSON son strings
+            # Convert to integer since JSON keys are strings
             page_num_int = int(page_num)
             watermark = page_data.get("watermarks")
 
@@ -99,45 +100,45 @@ class PDFJsonLoader(QObject):
     
     def apply_changes_to_pdf(self, pdf_path, output_path=None):
         """
-        Aplica los cambios guardados en el JSON a un PDF.
+        Applies changes saved in the JSON to a PDF.
         
         Args:
-            pdf_path: Ruta al PDF al que se aplicarán los cambios
-            output_path: Ruta donde guardar el PDF con cambios aplicados
+            pdf_path: Path to the PDF to which changes will be applied
+            output_path: Path to save the PDF with applied changes
         
         Returns:
-            Ruta al PDF con cambios aplicados
+            Path to the PDF with applied changes
         """
         if not self.json_data:
-            print("No hay datos JSON cargados")
+            print("No JSON data loaded")
             return None
         
         if not output_path:
             base_name = os.path.basename(pdf_path)
             output_path = f"loaded_{base_name}"
         
-        # Extraer información del JSON
+        # Extract information from JSON
         changes_by_page = self.extract_changes_by_page()
         highlights_by_page = self.extract_highlights_by_page()
         rotations_by_page = self.extract_rotations_by_page()
         watermarks_by_page = self.extract_watermarks()
         
-        # Obtener DPI de los metadatos o usar valor por defecto
+        # Get DPI from metadata or use default value
         dpi = self.json_data.get("metadata", {}).get("dpi", 300)
         
-        # Abrir el PDF
+        # Open the PDF
         doc = fitz.open(pdf_path)
         
-        # Factor de escala para convertir de coordenadas de imagen a PDF
+        # Scaling factor to convert from image coordinates to PDF
         scale_factor = 72 / dpi
         
-        # Aplicar rotaciones
+        # Apply rotations
         for page_num, rotation in rotations_by_page.items():
             if 0 <= page_num < doc.page_count:
                 page = doc[page_num]
                 page.set_rotation(rotation)
         
-        # Aplicar highlights
+        # Apply highlights
         for page_num, highlights in highlights_by_page.items():
             if 0 <= page_num < doc.page_count:
                 page = doc[page_num]
@@ -148,19 +149,19 @@ class PDFJsonLoader(QObject):
                     x1 = highlight["x1"]
                     y1 = highlight["y1"] 
                     
-                    # Crear el rectángulo para el highlight
+                    # Create rectangle for highlight
                     rect = fitz.Rect(x0, y0, x1, y1)
                     
-                    # Obtener color y opacidad si están disponibles
+                    # Get color and opacity if available
                     color = highlight.get("color", [1, 1, 0])  # Amarillo por defecto
                     opacity = highlight.get("opacity", 0.7)
                     
-                    # Aplicar highlight
+                    # Apply highlight
                     annot = page.add_highlight_annot(rect)
                     annot.set_colors(stroke=color)
                     annot.update(opacity=opacity)
 
-        # Aplicar círculos para cambios
+        # Apply circles for changes
         for page_num, changes in changes_by_page.items():
             if 0 <= page_num < doc.page_count:
                 page = doc[page_num]
@@ -171,80 +172,80 @@ class PDFJsonLoader(QObject):
                     radius = change["radius"] * scale_factor
                     change_type = change.get("change_type", "unknown")
                     
-                    # Crear anotación de círculo
+                    # Create circle annotation
                     circle = page.add_circle_annot((x - radius, y - radius, x + radius, y + radius))
                     
-                    # Determinar color según el tipo de cambio
+                    # Determine color based on change type
                     if change_type == "added":
-                        color = (0, 0, 1)  # Azul
+                        color = (0, 0, 1)  # Blue
                     elif change_type == "removed":
-                        color = (1, 0, 0)  # Rojo
+                        color = (1, 0, 0)  # Red
                     elif change_type == "modified":
-                        color = (0, 1, 0)  # Verde
+                        color = (0, 1, 0)  # Green
                     else:
-                        color = (0.5, 0.5, 0.5)  # Gris
+                        color = (0.5, 0.5, 0.5)  # Gray
                     
-                    # Configurar propiedades
+                    # Set properties
                     circle.set_border(width=2)
                     circle.set_colors(stroke=color)
                     circle.update(opacity=0.7)
                     
-                    # Guardar tipo de cambio en los metadatos
+                    # Save change type in metadata
                     info = circle.info
                     info["change_type"] = change_type
                     circle.set_info(info)
                     
-                    # Hacer la anotación toggle-able
+                    # Make annotation toggle-able
                     circle.set_flags(0)
         
         print("watermarks by page", watermarks_by_page)
         try:
-            # Aplicar watermarks
+            # Apply watermarks
             for page_num, watermark in watermarks_by_page.items():
 
-                if 0 <= page_num < doc.page_count:
+                if 0 <= page_num < doc.page_count and watermark != []:
                     page = doc[page_num]
 
                     page_rect = page.rect
                     
-                    # Crear una nueva imagen para mantener la transparencia
-                    # En versiones recientes de PyMuPDF podemos usar alpha directamente
+                    # Create a new image to maintain transparency
+                    # In recent PyMuPDF versions we can use alpha directly
                     try:
-                        # Intenta usar el método directo con parámetro alpha (versiones recientes)
+                        # Try direct method with alpha parameter (recent versions)
                         page.insert_image(page_rect, filename = watermark["path"], overlay=False, alpha=watermark["opacity"])
                     except TypeError:
-                        # Si la versión no soporta alpha, usamos un enfoque alternativo
+                        # If version doesn’t support alpha, use an alternative approach
                         img = fitz.open(watermark["path"])
                         pix = img[0].get_pixmap(alpha=True)
                         
-                        # Ajustar opacidad manualmente
+                        # Manually adjust opacity
                         import numpy as np
                         samples = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
-                        if pix.alpha:  # Si la imagen tiene canal alfa
+                        if pix.alpha:  # If image has alpha channel
                             alpha_channel = samples[:, :, -1]
                             alpha_channel = (alpha_channel * opacity).astype(np.uint8)
                             samples[:, :, -1] = alpha_channel
                         
-                        # Crear un nuevo pixmap con los samples modificados
+                        # Create a new pixmap with modified samples
                         new_pix = fitz.Pixmap(pix.colorspace, pix.width, pix.height, samples.tobytes(), alpha=pix.alpha)
                         page.insert_image(page_rect, pixmap=new_pix, overlay=False)
                         
-                        # Limpiar
+                        # Clean up
                         img.close()
                         path = watermark["path"]
-                    print(f"Marca de agua aplicada desde: {path} con opacidad {opacity:.1%}")
+                    print(f"Watermark applied from: {path} with opacity {opacity:.1%}")
                     return True
             
         except Exception as e:
-            print(f"Error al aplicar la marca de agua: {e}")
+            print(f"Error applying watermark: {e}")
             
-        # Aplicar marcas de agua
-        # Nota: Esto requeriría acceso a las imágenes originales.
-        # Para implementar completamente esta funcionalidad, se necesitaría:
-        # 1. Verificar que las imágenes existen
-        # 2. Implementar un mecanismo para almacenar/recuperar las imágenes
+        # Apply watermarks
+        # Note: This would require access to the original images.
+        # To fully implement this functionality, we would need to:
+        # 1. Verify that the images exist
+        # 2. Implement a mechanism to store/retrieve the images
         
-        # Guardar el documento
+        # Save document
         doc.save(output_path)
         doc.close()
         

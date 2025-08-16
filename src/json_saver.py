@@ -5,7 +5,7 @@ import datetime
 
 class PDFJsonSaver:
     """
-    Clase para guardar cambios aplicados a un PDF en un archivo JSON.
+    Class to save changes applied to a PDF into a JSON file.
     """
     def __init__(self, output_dir='data/output'):
         self.output_dir = output_dir
@@ -16,19 +16,19 @@ class PDFJsonSaver:
                            highlights_by_page=None, rotations_by_page=None, 
                            watermarks=None, output_path=None, dpi=300):
         """
-        Guarda los cambios aplicados a un PDF en un archivo JSON.
+        Saves changes applied to a PDF into a JSON file.
         
         Args:
-            original_pdf: Ruta al PDF original
-            formatted_circles_by_page: Diccionario de cambios por página
-            highlights_by_page: Diccionario de highlights por página
-            rotations_by_page: Diccionario de rotaciones por página
-            watermarks: Lista de marcas de agua aplicadas
-            output_path: Ruta donde guardar el archivo JSON
-            dpi: DPI usados para la conversión a imagen
+            original_pdf: Path to the original PDF
+            formatted_circles_by_page: Dictionary of changes per page
+            highlights_by_page: Dictionary of highlights per page
+            rotations_by_page: Dictionary of rotations per page
+            watermarks: List of applied watermarks
+            output_path: Path to save the JSON file
+            dpi: DPI used for image conversion
         
         Returns:
-            Ruta al archivo JSON guardado
+            Path to the saved JSON file
         """
         if not output_path:
             base_name = os.path.basename(original_pdf)
@@ -46,9 +46,9 @@ class PDFJsonSaver:
             "watermarks": watermarks or []
         }
         
-        # Agregar información de cambios por página
+        # Add change information per page
         for page_num, changes in formatted_circles_by_page.items():
-            # Convertir a string ya que las claves JSON deben ser strings
+            # Convert to string since JSON keys must be strings
             page_key = str(page_num)
             
             if page_key not in json_data["pages"]:
@@ -58,7 +58,7 @@ class PDFJsonSaver:
                     "rotation": 0
                 }
             
-            # Agregar cambios a la página
+            # Add changes to the page
             for change in changes:
                 change_data = {
                     "x": change["x"],
@@ -70,7 +70,7 @@ class PDFJsonSaver:
                 }
                 json_data["pages"][page_key]["changes"].append(change_data)
         
-        # Agregar highlights por página si están disponibles
+        # Add highlights per page if available
         if highlights_by_page:
             for page_num, highlights in highlights_by_page.items():
                 page_key = str(page_num)
@@ -84,7 +84,7 @@ class PDFJsonSaver:
                 
                 json_data["pages"][page_key]["highlights"] = highlights
         
-        # Agregar rotaciones por página si están disponibles
+        # Add rotations per page if available
         if rotations_by_page:
             for page_num, rotation in rotations_by_page.items():
                 page_key = str(page_num)
@@ -98,7 +98,7 @@ class PDFJsonSaver:
                 
                 json_data["pages"][page_key]["rotation"] = rotation
         
-        # Guardar el JSON
+        # Save JSON
         with open(self.output_path, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, indent=2)
         
@@ -106,41 +106,41 @@ class PDFJsonSaver:
     
     def extract_highlights_from_pdf(self, pdf_document, dpi=300):
         """
-        Extrae información de highlights de un documento PDF.
+        Extracts highlight annotations from a PDF document.
         
         Args:
-            pdf_document: Documento PDF abierto con PyMuPDF
-            dpi: DPI usados para la conversión a imagen
+            pdf_document: PDF document opened with PyMuPDF
+            dpi: DPI used for image conversion
         
         Returns:
-            Diccionario con información de highlights por página
+            Dictionary with highlight information per page
         """
         highlights_by_page = {}
         
-        # Factor de escala para convertir de coordenadas PDF a imagen
+        # Scale factor to convert from PDF coordinates to image coordinates
         scale_factor = dpi / 72
         
-        # Recorrer cada página del documento
+        # Iterate through each page in the document
         for page_num in range(len(pdf_document)):
             page = pdf_document[page_num]
             
             highlights = []
             
-            # Buscar anotaciones de tipo highlight
+            # Search for highlight annotations
             for annot in page.annots():
                 if annot.type[1] == "Highlight":
                     rect = annot.rect
                     
-                    # Convertir coordenadas de PDF a imagen
+                    # Convert PDF coordinates to image coordinates
                     x0 = rect.x0 * scale_factor
                     y0 = rect.y0 * scale_factor
                     x1 = rect.x1 * scale_factor
                     y1 = rect.y1 * scale_factor
                     
-                    # Extraer color
+                    # Extract color
                     color = annot.colors.get("stroke", [1, 1, 0])  # Amarillo por defecto
                     
-                    # Extraer opacidad
+                    # Extract opacity
                     opacity = getattr(annot, "opacity", 0.7)
                     
                     highlight_data = {
@@ -161,17 +161,17 @@ class PDFJsonSaver:
     
     def extract_rotations_from_pdf(self, pdf_document):
         """
-        Extrae información de rotaciones de un documento PDF.
+        Extracts rotation information from a PDF document.
         
         Args:
-            pdf_document: Documento PDF abierto con PyMuPDF
+            pdf_document: PDF document opened with PyMuPDF
         
         Returns:
-            Diccionario con información de rotaciones por página
+            Dictionary with rotation information per page
         """
         rotations_by_page = {}
         
-        # Recorrer cada página del documento
+        # Iterate through each page in the document
         for page_num in range(len(pdf_document)):
             page = pdf_document[page_num]
             rotation = page.rotation

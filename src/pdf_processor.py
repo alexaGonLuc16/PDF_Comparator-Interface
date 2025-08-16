@@ -13,55 +13,54 @@ class PDFProcessor:
     def pdf_to_images(self, pdf_path, dpi=300, selected_pages=None):
         print("Selected pages",selected_pages)
         """
-        Convierte páginas seleccionadas de un PDF a imágenes JPG.
+        Convert selected pages of a PDF to JPG images.
         
         Args:
-            pdf_path: Ruta al archivo PDF
-            dpi: Resolución en puntos por pulgada
-            selected_pages: Lista de índices de página a convertir (base 0), o None para todas
+        pdf_path: Path to the PDF file
+        dpi: Resolution in dots per inch
+        selected_pages: List of page indices to convert (0-based), or None for all
         """
         try:
             doc = fitz.open(pdf_path)
             image_paths = []
             
-            # Determinar qué páginas procesar
+            # Determine which pages to process
             if selected_pages is None:
-                # Procesar todas las páginas
+                # Process all pages
                 pages_to_process = range(len(doc))
             else:
-                # Procesar solo las páginas seleccionadas
-                # Asegurarse de que los índices están dentro del rango
+                # Process only selected pages
+                # Ensure that indices are within the valid range
                 pages_to_process = [p for p in selected_pages if 0 <= p < len(doc)]
                 print(f"Procesando páginas seleccionadas: {[p+1 for p in pages_to_process]}")
             
             for page_num in pages_to_process:
                 try:
-                    # Renderizar página
+                    # Render page
                     page = doc[page_num]
                     pix = page.get_pixmap(matrix=fitz.Matrix(dpi/72, dpi/72))
                     image_path = os.path.join(self.output_dir, f"{os.path.basename(pdf_path)}_page_{page_num}.jpg")
                     
-                    # Guardar imagen
+                    # Save image
                     pix.save(image_path, output="jpeg", jpg_quality=90)
-                    print("pathhhhhhhhhhhhhh",image_path)
-                    image_paths.append((page_num, image_path))  # Guardar número de página junto con la ruta
-                    print(f"Página {page_num+1} convertida exitosamente")
+                    image_paths.append((page_num, image_path))  # Save page number along with the path
+                    print(f"Page {page_num+1} successfully converted")
                 except Exception as e:
-                    print(f"Error al procesar la página {page_num+1}: {e}")
-                    # Código para manejar errores de página
+                    print(f"Error processing page {page_num+1}: {e}")
+                    # Code to handle page-specific errorsa
             
             doc.close()
-            # Ordenar por número de página para mantener el orden correcto
+            # Sort by page number to maintain correct order
             image_paths.sort(key=lambda x: x[0])
-            # Devolver solo las rutas de las imágenes
+            # Return only image paths
             return [path for _, path in image_paths]
         except Exception as e:
-            print(f"Error al abrir el PDF {pdf_path}: {e}")
+            print(f"Error opening PDF {pdf_path}: {e}")
             return []
 
     
     def get_image_dimensions(self, pdf_path, page_num=0, dpi=300):
-        """Obtiene las dimensiones de una página específica."""
+        """Gets the dimensions of a specific page."""
         doc = fitz.open(pdf_path)
         page = doc[page_num]
         pix = page.get_pixmap(matrix=fitz.Matrix(dpi/72, dpi/72))
@@ -70,22 +69,22 @@ class PDFProcessor:
         return width, height
     
     def repair_pdf(self, input_path, output_path=None):
-        """Intenta reparar un PDF dañado."""
+        """Attempts to repair a damaged PDF."""
         if output_path is None:
             base_name = os.path.basename(input_path)
             output_path = os.path.join(self.output_dir, f"repaired_{base_name}")
         
         try:
-            print(f"Intentando reparar PDF: {input_path}")
-            # Abrir el PDF en modo de reparación
+            print(f"Attempting to repair PDF: {input_path}")
+            # Open the PDF in repair mode
             doc = fitz.open(input_path)
-            # Guardar el PDF reparado
+            # Save the repaired PDF
             doc.save(output_path, garbage=4, clean=True, deflate=True)
             doc.close()
-            print(f"PDF reparado guardado en: {output_path}")
+            print(f"Repaired PDF saved at: {output_path}")
             return output_path
         except Exception as e:
-            print(f"No se pudo reparar el PDF: {e}")
+            print(f"Could not repair the PDF: {e}")
             return 
         
     

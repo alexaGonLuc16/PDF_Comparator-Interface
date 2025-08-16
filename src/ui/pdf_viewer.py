@@ -10,21 +10,21 @@ from math import sqrt
 import inspect
 
 class OpacityDialog(QDialog):
-    """Diálogo para seleccionar la opacidad de la marca de agua"""
+    """Dialogue to select the opacity of the watermark"""
     def __init__(self, parent=None):
         super(OpacityDialog, self).__init__(parent)
-        self.setWindowTitle("Seleccionar Opacidad")
-        self.opacity_value = 30  # Valor predeterminado: 30%
+        self.setWindowTitle("Select Opacity")
+        self.opacity_value = 30  # Default value: 30%
         self.setup_ui()
         
     def setup_ui(self):
         layout = QVBoxLayout(self)
         
-        # Etiqueta para mostrar el valor actual
-        self.opacity_label = QLabel(f"Opacidad: {self.opacity_value}%")
+        # Label to show the current value
+        self.opacity_label = QLabel(f"Opacity: {self.opacity_value}%")
         layout.addWidget(self.opacity_label)
         
-        # Slider para seleccionar la opacidad
+        # Slider to select the opacity
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setMinimum(1)
         self.opacity_slider.setMaximum(100)
@@ -34,9 +34,9 @@ class OpacityDialog(QDialog):
         self.opacity_slider.valueChanged.connect(self.update_opacity_label)
         layout.addWidget(self.opacity_slider)
         
-        # Ejemplos predefinidos
+        # Predefined examples
         presets_layout = QHBoxLayout()
-        presets = [(10, "Muy sutil"), (30, "Sutil"), (50, "Media"), (70, "Fuerte"), (90, "Muy fuerte")]
+        presets = [(10, "Very subtle"), (30, "Subtle"), (50, "Medium"), (70, "Strong"), (90, "Very strong")]
         
         for value, name in presets:
             preset_button = QPushButton(name)
@@ -47,10 +47,10 @@ class OpacityDialog(QDialog):
         
         # Botones de aceptar/cancelar
         button_layout = QHBoxLayout()
-        ok_button = QPushButton("Aceptar")
+        ok_button = QPushButton("Accept")
         ok_button.clicked.connect(self.accept)
         
-        cancel_button = QPushButton("Cancelar")
+        cancel_button = QPushButton("Cancel")
         cancel_button.clicked.connect(self.reject)
         
         button_layout.addWidget(ok_button)
@@ -61,28 +61,28 @@ class OpacityDialog(QDialog):
 
     def update_opacity_label(self, value):
         self.opacity_value = value
-        self.opacity_label.setText(f"Opacidad: {value}%")
+        self.opacity_label.setText(f"Opacity: {value}%")
     
     def set_preset(self, value):
         self.opacity_slider.setValue(value)
         self.update_opacity_label(value)
     
     def get_opacity(self):
-        """Devuelve el valor de opacidad como decimal (0-1)"""
+        """Returns the value of opacity as a decimal (0-1)"""
         return self.opacity_value / 100.0
 
 class ChangesListWidget(QWidget):
-    change_selected = pyqtSignal(int, dict)  # Página, cambio, activado
-    circle_selected = pyqtSignal(int, dict, bool)  # Página, cambio, activado   #signal to desapear a circle
-    update_annotations_sig = pyqtSignal(int, list)# Página, updated annotations  #signal to desapear a circle
-    change_description_edited = pyqtSignal(int, int, str)  # Página, índice, nuevo texto
+    change_selected = pyqtSignal(int, dict)  # # Page, change, activated
+    circle_selected = pyqtSignal(int, dict, bool)  # Page, change, activated   #signal to desapear a circle
+    update_annotations_sig = pyqtSignal(int, list)# Page, updated annotations  #signal to desapear a circle
+    change_description_edited = pyqtSignal(int, int, str)  # Page, index, new text
 
     def __init__(self, parent=None):
         super(ChangesListWidget, self).__init__(parent)
         self.changes_by_page = {}
-        self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
+        self.setMouseTracking(True)  # Important: enable mouse tracking even without a click
         self.formatted_circles_by_page = {}
-        self.changes_description = {} #lsta con descripciones de los cambios
+        self.changes_description = {} #list with descriptions of the changes
         self.init_ui()
         
     
@@ -130,12 +130,12 @@ class ChangesListWidget(QWidget):
             page_item.setForeground(0, QBrush(QColor(150, 150, 150)))  # gris claro
 
     def update_changes_list(self, formatted_circles_by_page):
-        """Actualiza la lista completa de cambios por página"""
+        """Update the complete list of changes by page"""
         if not hasattr(self, 'changes_tree') or self.changes_tree is None:
-            print("Error: changes_tree no está inicializado")
+            print("Error: changes_tree not initialized")
             return
 
-        # Guardar el estado expandido de los elementos
+        # Save the expanded state of the elements
         expanded_states = {}
         for i in range(self.changes_tree.topLevelItemCount()):
             item = self.changes_tree.topLevelItem(i)
@@ -143,15 +143,15 @@ class ChangesListWidget(QWidget):
             if data and "page" in data:
                 expanded_states[data["page"]] = item.isExpanded()
 
-        # Desconectar temporalmente la señal para evitar activaciones durante la actualización
+        # Temporarily disconnect the signal to avoid activations during the update.
         try:
             self.changes_tree.itemChanged.disconnect(self.on_item_edited)
         except TypeError:
-            pass  # Ya no estaba conectado, lo ignoramos
+            pass  # He was no longer connected, we ignored him.
 
         self.changes_tree.clear()
         if not formatted_circles_by_page:
-            # Reinsertar el placeholder
+            # Reinsert the placeholder
             placeholder = QTreeWidgetItem(self.changes_tree)
             placeholder.setText(0, "No differences found.")
             placeholder.setFlags(Qt.ItemIsEnabled)
@@ -161,7 +161,7 @@ class ChangesListWidget(QWidget):
 
         self.changes_by_page = formatted_circles_by_page
 
-        # Crear un elemento en el árbol para cada página con cambios
+        # Create an element in the tree for each page with changes
         for page_num, changes in sorted(formatted_circles_by_page.items()):
             self.changes_description[page_num] = changes
             if changes:
@@ -169,35 +169,35 @@ class ChangesListWidget(QWidget):
                 page_item.setText(0, f"Page {page_num + 1} ({len(changes)} differences)")
                 page_item.setData(0, 256, {"type": "page", "page": page_num})
                 
-                # Crear sub-elementos para cada cambio en la página
+                # Create sub-elements for each change on the page
                 for i, change in enumerate(changes):
                     change_item = QTreeWidgetItem(page_item)
-                    # Usar descripción personalizada si existe, de lo contrario usar el texto predeterminado
+                    # Use custom description if it exists, otherwise use the default text.
                     display_text = change.get("description", f"Difference {i+1}")
                     change_item.setText(0, display_text)
                     change_item.setData(0, 256, {"type": "change", "page": page_num, "index": i})
                     
-                    # Hacer que el texto sea editable
+                    # Make the text editable
                     change_item.setFlags(change_item.flags() | Qt.ItemIsEditable)
                     
-                    # Agregar checkbox para activar/desactivar
+                    # Add checkbox to enable/disable
                     change_item.setCheckState(1, 2 if change.get("selected", True) else 0)
         
-        # Restaurar los estados de expansión
+        # Restore the states of expansion
         for i in range(self.changes_tree.topLevelItemCount()):
             item = self.changes_tree.topLevelItem(i)
             data = item.data(0, 256)
             if data and "page" in data and data["page"] in expanded_states:
                 item.setExpanded(expanded_states[data["page"]])
             else:
-                item.setExpanded(True)  # Por defecto expandir si no hay estado guardado
+                item.setExpanded(True)  # Expand by default if there is no saved state
         
-        # Reconectar la señal
+        # Reconnect the signal
         self.changes_tree.itemChanged.connect(self.on_item_edited)
         self.changes_tree.setVisible(True)
     
     def on_item_clicked(self, item, column):
-        """Maneja el clic en un elemento del árbol"""
+        """Handle the click on an element of the tree"""
         data = item.data(0, 256)
         
         if not data:
@@ -210,18 +210,17 @@ class ChangesListWidget(QWidget):
             if page_num in self.changes_by_page and change_idx < len(self.changes_by_page[page_num]):
                 change = self.changes_by_page[page_num][change_idx]
                 
-                print("Selected state: ",change["selected"])
+                #print("Selected state: ",change["selected"])
 
-                # Si se hizo clic en la columna del checkbox, actualizar el estado
+                # If the checkbox column was clicked, update the status.
                 if column == 1:
-                    # Click en checkbox
+                    # Click on checkbox
                     is_checked = item.checkState(1) == Qt.Checked
                     change["selected"] = is_checked
-                    print("click en checkbox")
                     self.circle_selected.emit(page_num, change, is_checked)
                     self.update_annotations_sig.emit(page_num, self.formatted_circles_by_page[page_num])
 
-                    # Buscar y actualizar el nodo padre de forma segura
+                    # Safely find and update the parent node
                     for i in range(self.changes_tree.topLevelItemCount()):
                         page_item = self.changes_tree.topLevelItem(i)
                         if not page_item:
@@ -231,16 +230,16 @@ class ChangesListWidget(QWidget):
                             self.update_page_item_color(page_item)
                             break
                 else:
-                    # Si se hizo clic en el nombre, navegar al cambio
+                    # If the name was clicked, navigate to the change.
                     self.change_selected.emit(page_num, change)
         
-        # Si se hace clic en un elemento de página, expandir/contraer
+        # If you click on a page element, expand/collapse
         elif data["type"] == "page" and column == 0:
             item.setExpanded(not item.isExpanded())
 
     def on_item_edited(self, item, column):
-        """Maneja la edición de texto de un elemento"""
-        # Solo procesar ediciones en la columna 0 (texto) y para elementos de tipo "change"
+        """Manage the text editing of an element"""
+        # Only process edits in column 0 (text) and for items of type 'change'.
         if column != 0:
             return
             
@@ -252,24 +251,24 @@ class ChangesListWidget(QWidget):
         change_idx = data["index"]
         new_text = item.text(0)
         
-        print(f"Texto editado: Página {page_num}, Cambio {change_idx}, Nuevo texto: {new_text}")
+        print(f"Edited text: Page {page_num}, Change {change_idx}, New text: {new_text}")
         
-        # Actualizar la descripción en el objeto de cambio
+        # Update the description in the change object
         if page_num in self.changes_by_page and change_idx < len(self.changes_by_page[page_num]):
             change = self.changes_by_page[page_num][change_idx]
             change["description"] = new_text
             
-            # Emitir señal para notificar sobre el cambio de descripción
+            # Send a signal to notify about the change in description
             self.change_description_edited.emit(page_num, change_idx, new_text)
             
-            # También actualizar en el formatted_circles_by_page si existe
+            # Also update in the formatted_circles_by_page if it exists.
             if page_num in self.formatted_circles_by_page and change_idx < len(self.formatted_circles_by_page[page_num]):
                 self.formatted_circles_by_page[page_num][change_idx]["description"] = new_text
                 
     
 class PDFViewer(QWidget):
-    circle_clicked = pyqtSignal(int, dict,bool)  # Señal para comunicar clics
-    update_annotations = pyqtSignal(int, list)  # Página, cambios
+    circle_clicked = pyqtSignal(int, dict,bool)  # Signal to communicate clicks
+    update_annotations = pyqtSignal(int, list)  # Page, changes
     restart_signal = pyqtSignal()  # Restart app
 
     def __init__(self, title="PDF Viewer", other_visor = None): #pass the other pdf visor
@@ -280,24 +279,24 @@ class PDFViewer(QWidget):
         self.zoom_factor = 1.0
         self.clicks_enabled = False
         self.dpi = 300
-        self.changes_list_widget = None  # Inicializar a None
+        self.changes_list_widget = None  # Initialize as None
 
-        self.original_document = None # para almacenal el pdf original
-        self.showing_original = False # para mostrar el pdf anotado
+        self.original_document = None # store the original pdf
+        self.showing_original = False # show the annotated pdf
         self.formatted_circles_by_page = {}
         self.init_ui()
-        self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
-        self.page_label.setMouseTracking(True)  # También habilítalo para el label del PDF
+        self.setMouseTracking(True)  # Important: enable mouse tracking even without a click
+        self.page_label.setMouseTracking(True)  # Also enable it for the PDF label
         self.page_width = 0
         self.page_height = 0
-        self.matrix = fitz.Matrix(1, 1)  # Escala 1:1, sin transformación
+        self.matrix = fitz.Matrix(1, 1)  # Scale 1:1, without transformation
         self.file_path = None
-        self.highlighting = False  # Indica si estamos en modo subrayado
-        self.highlight_start = None  # Coordenada inicial del subrayado
-        self.highlight_end = None  # Coordenada final del subrayado
-        self.temp_highlight_annot = None  # Para almacenar la anotación temporal
+        self.highlighting = False  # Indicate if we are in underline mode
+        self.highlight_start = None  # Initial coordinate of the underlining
+        self.highlight_end = None  # Final coordinate of the underlining
+        self.temp_highlight_annot = None  # To store the timestamp annotation
         self.highlights_by_page = {}
-        self.watermarks_by_page = {} #Alacenar las marcas de agua por pagina : {"path","opacity"}
+        self.watermarks_by_page = {} # Remove the watermarks per page: {"path","opacity"}
         self.active_circle_annot = None
         self.drag_mode = False
         self.dragging = False
@@ -308,10 +307,10 @@ class PDFViewer(QWidget):
         print("Other visor", other_visor)
     
     def init_ui(self):
-        # Layout principal
+        # Main Layout
         layout = QVBoxLayout(self)
         
-        #Boton de reinicio
+        #Restart Button
         if self.title == "Annotated PDF":
             self.reload_button = QPushButton("Compare new schematic")
             restart_layout = QHBoxLayout()
@@ -341,14 +340,14 @@ class PDFViewer(QWidget):
             panning_layout.addWidget(self.drag_button, 1)
             invisible_label_2 = QLabel("")
             panning_layout.addWidget(invisible_label_2, 5)
-            layout.addLayout(panning_layout)  # Ajusta según tu layout
+            layout.addLayout(panning_layout)  # Adjust according to your layout
 
-        # Título
+        # Title
         self.title_label = QLabel(self.title)
         self.title_label.setAlignment(Qt.AlignCenter)
         self.title_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
         
-        # Área de visualización del PDF
+        # PDF viewing area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setAlignment(Qt.AlignCenter)
@@ -357,15 +356,15 @@ class PDFViewer(QWidget):
         self.page_label = QLabel()
         self.page_label.setAlignment(Qt.AlignCenter)
         self.page_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.page_label.setMouseTracking(True)  # Habilitar seguimiento del mouse
-        self.page_label.mousePressEvent = self.label_mouse_press_event  # Sobrescribir evento
-        self.page_label.installEventFilter(self)  # Instalar filtro de eventos
-        # Instalar filtro de eventos en el widget principal también
+        self.page_label.setMouseTracking(True)  # Enable mouse tracking
+        self.page_label.mousePressEvent = self.label_mouse_press_event  # Overwrite event
+        self.page_label.installEventFilter(self)  # Install event filter
+        # Install event filter in the main widget as well
         self.installEventFilter(self)
 
         self.scroll_area.setWidget(self.page_label)
 
-        # Controles de navegación
+        # Navigation controls
         nav_layout = QHBoxLayout()
         
         self.prev_button = QPushButton("Previous")
@@ -379,7 +378,7 @@ class PDFViewer(QWidget):
         self.next_button.clicked.connect(self.next_page)
         self.next_button.setEnabled(False)
         
-        # Controles de zoom
+        # Zoom controls
         self.zoom_out_button = QPushButton("Zoom -")
         self.zoom_out_button.clicked.connect(self.zoom_out)
         
@@ -410,16 +409,16 @@ class PDFViewer(QWidget):
         layout.addWidget(self.title_label)
         layout.addWidget(self.scroll_area, 1)
         layout.addLayout(nav_layout)
-        layout.addLayout(watermark_layout)  # Añadir el nuevo layout
+        layout.addLayout(watermark_layout)  # Add new layout
         
-        # Agregamos una lista de cambios solo si este es el visor de PDF anotado
+        # We add a list of changes only if this is the annotated PDF viewer.
         if "Annotated PDF" in self.title:
-            print("Inicializando lista de cambios para el PDF Anotado")
+            print("Initializing change list for the Annotated PDF")
             print("------------------------------------------------------------------------------------")
             self.changes_list_widget = ChangesListWidget(self)
             self.changes_list_widget.setStyleSheet("""
                 ChangesListWidget {
-                    background-color: #f0f4f8; /* Color interior diferente al fondo global */
+                    background-color: #f0f4f8; /* Interior color different from the global background */
                     border: 1px solid #dcdcdc;
                     border-radius: 10px;
                     padding: 10px;
@@ -442,26 +441,24 @@ class PDFViewer(QWidget):
             delta = event.globalPos() - self.last_drag_pos
             self.last_drag_pos = event.globalPos()
 
-            # Scroll del visor activo
+            # Scroll of the active viewer
             h_scroll = self.scroll_area.horizontalScrollBar()
             v_scroll = self.scroll_area.verticalScrollBar()
 
             h_scroll.setValue(h_scroll.value() - delta.x())
             v_scroll.setValue(v_scroll.value() - delta.y())
 
-            # Scroll del visor sincronizado
+            # Scroll of the synchronized viewer
             if self.other_visor and hasattr(self.other_visor, 'scroll_area') and self.title == "Annotated PDF":
                 print("Setting sincronized values-------------------------")
                 print("Tipo real", self.other_visor.scroll_area)
-                print("Atributos",dir(self.other_visor.scroll_area))
+                print("Attributes",dir(self.other_visor.scroll_area))
 
                 other_h = self.other_visor.scroll_area.horizontalScrollBar()
                 other_v = self.other_visor.scroll_area.verticalScrollBar()
 
                 other_h.setValue(other_h.value() - delta.x())
                 other_v.setValue(other_v.value() - delta.y())
-            else:
-                print("No se pudo :(")
 
             return
 
@@ -478,15 +475,17 @@ class PDFViewer(QWidget):
             self.setCursor(Qt.ArrowCursor)
     
     def confirm_restart(self):
-        """Pide confirmación antes de emitir la señal de reinicio"""
+        """Request confirmation before issuing the restart signal."""
         confirm = QMessageBox.question(
-            self, 'Confirmar reinicio',
-            '¿Estás seguro que quieres reiniciar la aplicación?',
+            self, 'Confirm restart',
+            'Are you sure you want to restart the application?',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
         
         if confirm == QMessageBox.StandardButton.Yes:
+            self.original_document.close()
+            self.document.close()
             self.restart_signal.emit()
 
     def restart(self):
@@ -497,16 +496,16 @@ class PDFViewer(QWidget):
         self.update_annotations.emit(page_num, updated_annotations)
 
     def select_watermark_image(self):
-        """Abre un diálogo para seleccionar una imagen y su opacidad"""
+        """Open a dialog to select an image and its opacity"""
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar Imagen para Marca de Agua", "",
-            "Imágenes (*.png *.jpg *.jpeg *.bmp *.gif);;Todos los archivos (*)", 
+            self, "Select the Watermark image", "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All the files (*)", 
             options=options
         )
         
         if file_path:
-            # Abrir diálogo de opacidad
+            # Open opacity dialog
             opacity_dialog = OpacityDialog(self)
             if opacity_dialog.exec_() == QDialog.Accepted:
                 opacity = opacity_dialog.get_opacity()
@@ -517,11 +516,11 @@ class PDFViewer(QWidget):
         return False
         
     def select_watermark_for_all_pages(self):
-        """Abre un diálogo para seleccionar una imagen y aplicarla a todas las páginas"""
+        """Open a dialog to select an image and apply it to all pages."""
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar Imagen para Marca de Agua (Todas las Páginas)", "",
-            "Imágenes (*.png *.jpg *.jpeg *.bmp *.gif);;Todos los archivos (*)", 
+            self, "Select the watermark image (All the pages)", "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All the files (*)", 
             options=options
         )
         
@@ -531,62 +530,62 @@ class PDFViewer(QWidget):
         return False
 
     def apply_watermark_image(self, image_path, opacity=0.3):
-        """Aplica la imagen seleccionada como marca de agua al PDF actual con opacidad ajustable"""
+        """Apply the selected image as a watermark to the current PDF with adjustable opacity."""
         if not self.document:
-            print("No hay documento abierto para aplicar la marca de agua")
+            print("There is no open document to apply the watermark.")
             return False
             
         try:
-            # Obtener la página actual
+            # Get the current page
             page = self.document[self.current_page]
             page_rect = page.rect
             
-            # Crear una nueva imagen para mantener la transparencia
-            # En versiones recientes de PyMuPDF podemos usar alpha directamente
+            # Create a new image to maintain transparency
+            # In recent versions of PyMuPDF we can use alpha directly.
             try:
-                # Intenta usar el método directo con parámetro alpha (versiones recientes)
+                # Try using the direct method with parameter alpha (recent versions)
                 page.insert_image(page_rect, filename=image_path, overlay=False, alpha=opacity)
             except TypeError:
-                # Si la versión no soporta alpha, usamos un enfoque alternativo
+                # If the version does not support alpha, we use an alternative approach.
                 img = fitz.open(image_path)
                 pix = img[0].get_pixmap(alpha=True)
                 
-                # Ajustar opacidad manualmente
+                # Adjust opacity manually
                 import numpy as np
                 samples = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
-                if pix.alpha:  # Si la imagen tiene canal alfa
+                if pix.alpha:  # If the image has an alpha channel
                     alpha_channel = samples[:, :, -1]
                     alpha_channel = (alpha_channel * opacity).astype(np.uint8)
                     samples[:, :, -1] = alpha_channel
                 
-                # Crear un nuevo pixmap con los samples modificados
+                # Create a new pixmap with the modified samples
                 new_pix = fitz.Pixmap(pix.colorspace, pix.width, pix.height, samples.tobytes(), alpha=pix.alpha)
                 page.insert_image(page_rect, pixmap=new_pix, overlay=False)
                 
-                # Limpiar
+                # Clean
                 img.close()
             
-            # Renderizar la página actualizada
+            # Render the updated page
             self.render_current_page()
-            print(f"Marca de agua aplicada desde: {image_path} con opacidad {opacity:.1%}")
+            print(f"Watermark applied since: {image_path} with opacity {opacity:.1%}")
             self.document_modified = True
             return True
         
         except Exception as e:
-            print(f"Error al aplicar la marca de agua: {e}")
+            print(f"Error applying the watermark: {e}")
             return False
     
     def select_watermark_for_all_pages(self):
-        """Abre un diálogo para seleccionar una imagen y aplicarla a todas las páginas con opacidad ajustable"""
+        """Open a dialog to select an image and apply it to all pages with adjustable opacity."""
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar Imagen para Marca de Agua (Todas las Páginas)", "",
-            "Imágenes (*.png *.jpg *.jpeg *.bmp *.gif);;Todos los archivos (*)", 
+            self, "Select Image for Watermark (All Pages)", "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All files (*)", 
             options=options
         )
         
         if file_path:
-            # Abrir diálogo de opacidad
+            # Open opacity dialog
             opacity_dialog = OpacityDialog(self)
             if opacity_dialog.exec_() == QDialog.Accepted:
                 opacity = opacity_dialog.get_opacity()
@@ -595,128 +594,128 @@ class PDFViewer(QWidget):
         return False
     
     def apply_watermark_to_all_pages(self, image_path, opacity=0.3):
-        """Aplica la marca de agua a todas las páginas del documento con opacidad ajustable"""
+        """Apply the watermark to all pages of the document with adjustable opacity."""
         if not self.document:
-            print("No hay documento abierto para aplicar la marca de agua")
+            print("There is no open document to apply the watermark.")
             return False
             
         try:
-            # Verificar si podemos usar alpha directamente
+            # Check if we can use alpha directly
             supports_alpha = True
             try:
-                # Prueba si la versión de PyMuPDF soporta alpha
+                # Test if the version of PyMuPDF supports alpha
                 page = self.document[0]
                 page.insert_image(fitz.Rect(0, 0, 1, 1), filename=image_path, overlay=False, alpha=0.5)
-                # Si llegamos aquí, soporta alpha
+                # If we arrive here, withstand alpha.
             except TypeError:
                 supports_alpha = False
             
-            # Crear pixmap una sola vez para reutilizarlo (si es necesario)
+            # Create a pixmap once to reuse it (if necessary)
             modified_pixmap = None
             if not supports_alpha:
                 img = fitz.open(image_path)
                 pix = img[0].get_pixmap(alpha=True)
                 
-                # Ajustar opacidad manualmente
+                # Adjust opacity manually
                 import numpy as np
                 samples = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
-                if pix.alpha:  # Si la imagen tiene canal alfa
+                if pix.alpha:  # If the image has an alpha channel
                     alpha_channel = samples[:, :, -1]
                     alpha_channel = (alpha_channel * opacity).astype(np.uint8)
                     samples[:, :, -1] = alpha_channel
                 
-                # Crear un nuevo pixmap con los samples modificados
+                # Create a new pixmap with the modified samples
                 modified_pixmap = fitz.Pixmap(pix.colorspace, pix.width, pix.height, samples.tobytes(), alpha=pix.alpha)
                 img.close()
             
-            # Aplicar a todas las páginas
+            # Apply to all pages
             for page_num in range(self.document.page_count):
                 page = self.document[page_num]
                 page_rect = page.rect
                 
-                # Insertar la imagen como marca de agua
+                # Insert the image as a watermark
                 if supports_alpha:
                     page.insert_image(page_rect, filename=image_path, overlay=False, alpha=opacity)
                 else:
                     page.insert_image(page_rect, pixmap=modified_pixmap, overlay=False)
             
-            # Limpiar si fue necesario
+            # Clean if necessary
             if modified_pixmap:
                 modified_pixmap = None
             
-            # Renderizar la página actual
+            # Render the current page
             self.render_current_page()
-            print(f"Marca de agua aplicada a todas las páginas desde: {image_path} con opacidad {opacity:.1%}")
+            print(f"Watermark applied to all pages since: {image_path} with opacity {opacity:.1%}")
             self.document_modified = True
             return True
         
         except Exception as e:
-            print(f"Error al aplicar la marca de agua a todas las páginas: {e}")
+            print(f"Error applying the watermark to all pages: {e}")
             return False
     
     def eventFilter(self, obj, event):
-        """Filtro de eventos para capturar eventos del mouse"""
+        """Event filter to capture mouse events"""
         
-        # Manejar movimiento de mouse durante subrayado
+        # Handle mouse movement during highlighting
         if event.type() == QEvent.MouseMove and self.highlighting and self.document:
-            # Si estamos arrastrando para subrayar
+            # If we are dragging to underline
             if hasattr(self, 'highlight_start') and self.highlight_start:
-                # Convertir coordenadas si es necesario
+                # Convert coordinates if necessary
                 if obj == self:
-                    # Evento desde el label
+                    # Event from the label
                     adjusted_x = event.pos().x()
                     adjusted_y = event.pos().y()
                 else:
-                    # Evento desde el label
+                    # Event from the label
                     adjusted_x = event.pos().x()
                     adjusted_y = event.pos().y()
                 
-                # Actualizar posición final
+                # Update final position
                 self.highlight_end = (adjusted_x, adjusted_y)
         
-        # Manejar liberación de mouse durante subrayado
+        # Manage mouse release during highlighting
         elif event.type() == QEvent.MouseButtonRelease and self.highlighting and self.document:
             if event.button() == Qt.LeftButton and hasattr(self, 'highlight_start') and self.highlight_start:
                 self.highlighting = False
                 
-                # Convertir coordenadas si es necesario
+                # Convert coordinates if necessary
                 if obj == self:
                     adjusted_x = event.pos().x()
                     adjusted_y = event.pos().y()
                 else:
-                    # Evento desde el label
+                    # Event from the label
                     adjusted_x = event.pos().x()
                     adjusted_y = event.pos().y()
                 
-                # Guardar la posición final
+                # Save the final position
                 self.highlight_end = (adjusted_x, adjusted_y)
                 
-                # Aplicar el subrayado
+                # Apply the underline
                 self.apply_highlight()
         
-        # Código existente para tooltips (solo para MouseMove)
+        # Existing code for tooltips (only for MouseMove)
         if obj == self.page_label and event.type() == QEvent.MouseMove:
-            # Obtener posición del mouse relativa al label
+            # Get the mouse position relative to the label
             mouse_pos = event.pos()
 
-            dpi_scale = self.dpi / 72.0  # Escala por DPI (72 es el valor base)
+            dpi_scale = self.dpi / 72.0  # Scale by DPI (72 is the base value)
             zoom_scale = self.zoom_factor
             total_scale = dpi_scale / zoom_scale
 
-            # Verificar si el documento está cargado
+            # Check if the document is uploaded
             if hasattr(self, 'document') and self.document:
                 tooltip_text = ""
-                # Si tenemos círculos en la página actual, verificar si el cursor está sobre alguno
+                # If we have circles on the current page, check if the cursor is over any of them.
                 if hasattr(self, 'formatted_circles_by_page') and self.current_page in self.formatted_circles_by_page:
                     
                     doc_x = mouse_pos.x() * total_scale
                     doc_y = mouse_pos.y() * total_scale
-                    # Verificar cada círculo en la página actual
+                    # Check each circle on the current page
                     for i, circle in enumerate(self.formatted_circles_by_page[self.current_page]):
-                        # Calcular distancia entre el cursor y el centro del círculo
+                        # Calculate the distance between the cursor and the center of the circle
                         distance = sqrt((doc_x - circle['x'])**2 + (doc_y - circle['y'])**2)
                         
-                        # Si la distancia es menor o igual al radio, el cursor está sobre el círculo
+                        # If the distance is less than or equal to the radius, the cursor is over the circle.
                         if distance <= circle['radius']:
                             tooltip_text = self.changes_list_widget.changes_description[self.current_page][i].get("description", f"Difference {i+1}")
                             break
@@ -726,49 +725,49 @@ class PDFViewer(QWidget):
         return super(PDFViewer, self).eventFilter(obj, event)
 
     def mouseMoveEvent(self, event):
-        """Maneja el movimiento del mouse sobre el visor de PDF"""
-        # Si estamos en modo subrayado
+        """Control the mouse movement over the PDF viewer"""
+        # If we are in underline mode
         if hasattr(self, 'highlighting') and self.highlighting and self.document and hasattr(self, 'highlight_start_pixels'):
             
-            # Convertir coordenadas para el rubber band
+            # Convert coordinates for the rubber band
             label_pos = self.page_label.mapFrom(self, event.pos())
             
-            # Actualizar el rubber band para feedback visual
+            # Update the rubber band for visual feedback
             if hasattr(self, 'highlight_overlay'):
                 start_pos = QPoint(self.highlight_start_pixels[0], self.highlight_start_pixels[1])
                 self.highlight_overlay.setGeometry(QRect(start_pos, label_pos).normalized())
             
-            # Guardar posición final en coordenadas ajustadas para PDF
+            # Save final position in adjusted coordinates for PDF
             adjusted_x = label_pos.x() + self.scroll_area.horizontalScrollBar().value()
             adjusted_y = label_pos.y() + self.scroll_area.verticalScrollBar().value()
             
             x, y = adjusted_x, adjusted_y
             self.highlight_end_pdf = (x, y)
         
-        # Código existente para tooltips
-        # Solo procesar si tenemos documentos cargados
+        # Existing code for tooltips
+        # Only process if we have uploaded documents
         if not self.document:
             return super(PDFViewer, self).mouseMoveEvent(event)
         
-        # Comprobar si el cursor está sobre el visor de PDF
+        # Check if the cursor is over the PDF viewer
         if self.page_label.underMouse():
-            # Convertir coordenadas del evento a coordenadas relativas al QLabel
+            # Convert event coordinates to coordinates relative to the QLabel
             label_pos = self.page_label.mapFrom(self, event.pos())
 
-            # Ajustar por desplazamiento del ScrollArea
+            # Adjust by scrolling displacement
             adjusted_x = label_pos.x()
             adjusted_y = label_pos.y()
             
-            # Mostrar un tooltip con información básica
-            tooltip_text = f"Posición: X={adjusted_x}, Y={adjusted_y}\nPage: {self.current_page + 1} of {self.document.page_count}"
+            # Show a tooltip with basic information
+            tooltip_text = f"Position: X={adjusted_x}, Y={adjusted_y}\nPage: {self.current_page + 1} of {self.document.page_count}"
             
-            # Añadir información sobre qué documento se está mostrando
+            # Add information about which document is being displayed
             if hasattr(self, 'showing_original') and self.showing_original:
-                tooltip_text += "\nMostrando: PDF Original"
+                tooltip_text += "\nShowing: Original PDF"
             else:
-                tooltip_text += "\nMostrando: PDF Anotado"
+                tooltip_text += "\nShowing: Annotated PDF"
             
-            # Mostrar el tooltip
+            # Show tooltip
             QToolTip.showText(event.globalPos(), tooltip_text, self)
         else:
             QToolTip.hideText()
@@ -776,23 +775,23 @@ class PDFViewer(QWidget):
         return super(PDFViewer, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        """Maneja el evento de soltar el botón del mouse"""
-        print("mouseReleaseEvent - Botón:", event.button(), "- Highlighting:", self.highlighting)
+        """Handle the mouse button release event"""
+        print("mouseReleaseEvent - Button:", event.button(), "- Highlighting:", self.highlighting)
         
         if event.button() == Qt.LeftButton and self.drag_mode and self.dragging:
             self.dragging = False
             self.page_label.setCursor(Qt.OpenHandCursor)
             
-        # Si estábamos subrayando y es botón izquierdo
+        # If we were highlighting and it's the left button.
         if self.highlighting and event.button() == Qt.LeftButton and self.document:
-            print("Finalizando subrayado")
+            print("Finalizing underlining")
             self.highlighting = False
             
-            # Ocultar el rubber band
+            # Hide the rubber band
             if hasattr(self, 'highlight_overlay'):
                 self.highlight_overlay.hide()
             
-            # Convertir coordenadas para el punto final
+            # Convert coordinates for the endpoint
             label_pos = self.page_label.mapFrom(self, event.pos())
             print("Label_pos", label_pos)
             pos = event.pos()
@@ -801,8 +800,8 @@ class PDFViewer(QWidget):
             
             print("Vertical",self.scroll_area.verticalScrollBar().value())
             print("Horizontal",self.scroll_area.horizontalScrollBar().value())
-            adjusted_x = label_pos.x() #+ self.scroll_area.horizontalScrollBar().value()
-            adjusted_y = label_pos.y() #+ self.scroll_area.verticalScrollBar().value()
+            adjusted_x = label_pos.x()
+            adjusted_y = label_pos.y()
 
             x, y = adjusted_x, adjusted_y
             self.highlight_end_pdf = (x, y)
@@ -810,48 +809,44 @@ class PDFViewer(QWidget):
             print("Highlight_start",self.highlight_start_pdf)
             print("Highlight_end",self.highlight_end_pdf)
 
-            print(f"Final de subrayado en coords PDF: {self.highlight_end_pdf}")
+            print(f"End of underline in PDF coords: {self.highlight_end_pdf}")
             
-            # Aplicar el subrayado
+            # Apply the underline
             self.apply_highlight()
         
         super(PDFViewer, self).mouseReleaseEvent(event)
         
     def apply_highlight(self):
         if not self.document:
-            print("No hay documento cargado.")
+            print("No document uploaded.")
             return
         
         if not hasattr(self, 'highlight_start_pdf') or not hasattr(self, 'highlight_end_pdf'):
-            print("No hay coordenadas de subrayado.")
+            print("There are no underlined coordinates..")
             return
         
-        # Obtener información de la página y la transformación
+        # Obtain information from the page and the transformation
         page = self.document[self.current_page]
         page_rect = page.rect  # Rectángulo de la página en coordenadas de PDF
         
-        # Obtener el tamaño del pixmap actual para comprender la relación entre pantalla y PDF
+        # Obtain the size of the current pixmap to understand the relationship between the screen and PDF.
         pixmap_width = self.page_label.pixmap().width()
         pixmap_height = self.page_label.pixmap().height()
 
         current_rotation = page.rotation
-        
-        #width difference
-        #diff = pixmap_width / page_rect.height
-        #pixmap_width = pixmap_width / diff        
-
+    
         if current_rotation == 0:
-            # Obtener coordenadas en píxeles
+            # Obtain pixel coordinates
             x0, y0 = self.highlight_start_pdf
             x1, y1 = self.highlight_end_pdf
         elif current_rotation == 90:
-            x0, y0 = self.highlight_start_pdf[1], page_rect.width - self.highlight_end_pdf[0] #arreglar esta coordenada x
+            x0, y0 = self.highlight_start_pdf[1], page_rect.width - self.highlight_end_pdf[0] 
             x1, y1 = self.highlight_end_pdf[1], page_rect.width - self.highlight_start_pdf[0] 
         elif current_rotation == 180:
             x0, y0 = page_rect.width - self.highlight_end_pdf[0], page_rect.height - self.highlight_end_pdf[1]
             x1, y1 = page_rect.width - self.highlight_start_pdf[0], page_rect.height - self.highlight_start_pdf[1]
         elif current_rotation == 270:
-            x0, y0 = page_rect.height - self.highlight_end_pdf[1], self.highlight_start_pdf[0] #arreglar esta coordenada x
+            x0, y0 = page_rect.height - self.highlight_end_pdf[1], self.highlight_start_pdf[0]
             x1, y1 = page_rect.height - self.highlight_start_pdf[1], self.highlight_end_pdf[0]
 
         print("x0",x0)
@@ -859,11 +854,11 @@ class PDFViewer(QWidget):
         print("x1",x1)
         print("y1",y1)
 
-        # Calcular relación entre pixmap y PDF
+        # Calculate the relationship between pixmap and PDF
         x_ratio = page_rect.width / pixmap_width
         y_ratio = page_rect.height / pixmap_height 
         
-        # Convertir de coordenadas de pantalla a coordenadas de PDF
+        # Convert from screen coordinates to PDF coordinates
         pdf_x0 = x0 * x_ratio
         pdf_y0 = y0 * y_ratio
         pdf_x1 = x1 * x_ratio
@@ -872,7 +867,7 @@ class PDFViewer(QWidget):
         print("x_ratio", x_ratio)
         print("y_ratio", y_ratio)
 
-        # Crear rectángulo en coordenadas de PDF
+        # Create rectangle in PDF coordinates
         rect = fitz.Rect(pdf_x0, pdf_y0, pdf_x1, pdf_y1)
 
         new_highlight = {}
@@ -890,21 +885,20 @@ class PDFViewer(QWidget):
             self.highlights_by_page[self.current_page] = [new_highlight]
             print("Anotation added: ",self.highlights_by_page[self.current_page])
         
-        #print(f"Ventana maximizada: {is_maximized}, Offset aplicado: {offset_x}")
         print(f"Coords pantalla (ajustadas): ({x0}, {y0}) a ({x1}, {y1})")
         print(f"Coords PDF: ({pdf_x0}, {pdf_y0}) a ({pdf_x1}, {pdf_y1})")
         print(f"Rectángulo PDF: {rect}")
         
         try:
-            # Aplicar el subrayado
+            # Apply the underline
             annot = page.add_highlight_annot(rect)
-            annot.set_colors(stroke=(1, 1, 0))  # Color amarillo
+            annot.set_colors(stroke=(1, 1, 0)) 
             annot.update()
-            print("Subrayado aplicado con éxito")
+            print("Underline applied successfully")
         except Exception as e:
-            print(f"Error al aplicar subrayado: {e}")
+            print(f"Error applying underline: {e}")
         
-        # Limpiar las variables
+        # Clear the variables
         if hasattr(self, 'highlight_start_pdf'):
             del self.highlight_start_pdf
         if hasattr(self, 'highlight_end_pdf'):
@@ -912,22 +906,22 @@ class PDFViewer(QWidget):
         if hasattr(self, 'highlight_start_pixels'):
             del self.highlight_start_pixels
         
-        # Renderizar la página actualizada
+        # Render the updated page
         self.render_current_page()
         self.document_modified = True
 
     def update_temp_highlight(self):
-        """Actualiza el subrayado temporal mientras se arrastra el mouse"""
+        """Update the temporary highlighting while the mouse is dragged"""
         if not self.document or not self.highlight_start or not self.highlight_end:
             return
         
         page = self.document[self.current_page]
         
-        # Eliminar anotación temporal anterior si existe
+        # Remove previous temporary annotation if it exists
         if self.temp_highlight_annot:
             try:
-                # Verificar si la anotación todavía está vinculada a la página
-                # Esto evitará el error "Annot is not bound to a page"
+                # Check if the annotation is still linked to the page.
+                # This will avoid the error "Annot is not bound to a page"
                 if hasattr(self.temp_highlight_annot, 'parent') and self.temp_highlight_annot.parent:
                     page.delete_annot(self.temp_highlight_annot)
             except Exception as e:
@@ -935,158 +929,156 @@ class PDFViewer(QWidget):
             finally:
                 self.temp_highlight_annot = None
         
-        # Obtener coordenadas
+        # Get coordinates
         x0, y0 = self.highlight_start
         x1, y1 = self.highlight_end
         
-        # Asegurarse que los valores están en orden
+        # Make sure that the values are in order.
         x0, x1 = sorted([x0, x1])
         y0, y1 = sorted([y0, y1])
         
-        # Crear rectángulo para el subrayado
+        # Create a rectangle for the underline
         rect = fitz.Rect(x0, y0, x1, y1 + 10.0)
         
         try:
-            # Crear anotación temporal con un estilo diferente para distinguirla
+            # Create a temporary annotation with a different style to distinguish it.
             self.temp_highlight_annot = page.add_highlight_annot(rect)
-            self.temp_highlight_annot.set_colors(stroke=(0.5, 0.5, 1))  # Color azul claro
-            self.temp_highlight_annot.set_opacity(0.5)  # Semi-transparente
+            self.temp_highlight_annot.set_colors(stroke=(0.5, 0.5, 1))  
+            self.temp_highlight_annot.set_opacity(0.5)  # Semi-transparent
             self.temp_highlight_annot.update()
             
-            # Renderizar la página para mostrar el cambio
+            # Render the page to show the change
             self.render_current_page()
         except Exception as e:
-            print(f"Error al crear anotación temporal: {e}")
+            print(f"Error creating temporary annotation: {e}")
             self.temp_highlight_annot = None
 
     def keyPressEvent(self, event):
-        """Captura eventos de tecla presionada"""
-        # Detectar si se presiona la tecla Q
+        """Capture key press events"""
+        # Detect if the Q key is pressed
         if event.key() == Qt.Key_Q and not event.isAutoRepeat():
-            print("Tecla Q presionada - mostrando PDF original")
+            print("Key Q pressed - showing original PDF")
             self.show_pdf(is_original=True)
             return
         
-        # Cancelar subrayado si se presiona Escape
+        # Cancel underline if Escape is pressed
         if event.key() == Qt.Key_Escape and self.highlighting:
             self.highlighting = False
             self.highlight_start = None
             self.highlight_end = None
         
-        # Eliminar anotación temporal si existe
+        # Remove temporary annotation if it exists
         if self.temp_highlight_annot:
             page = self.document[self.current_page]
             page.delete_annot(self.temp_highlight_annot)
             self.temp_highlight_annot = None
             self.render_current_page()
         
-        # Dejar que el evento siga su procesamiento normal para otras teclas
+        # Let the event continue its normal processing for other keys.
         super(PDFViewer, self).keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
-        """Captura eventos de tecla liberada"""
-        # Detectar si se suelta la tecla Q
+        """Capture key release events"""
+        # Detect if the Q key is released
         if event.key() == Qt.Key_Q and not event.isAutoRepeat():
-            print("Tecla Q liberada - volviendo a PDF anotado")
+            print("Key Q released - returning to annotated PDF")
             self.show_pdf(is_original=False)
             return
         
-        # Dejar que el evento siga su procesamiento normal para otras teclas
+        # Let the event continue its normal processing for other keys.
         super(PDFViewer, self).keyReleaseEvent(event)
 
     def show_pdf(self, is_original=False):
-        """Muestra el PDF original o anotado según el parámetro"""
+        """Show the original or annotated PDF according to the parameter"""
         if not self.document or (is_original and not self.original_document):
-            print("No hay documentos cargados para mostrar")
+            print("There are no uploaded documents to display.")
             return
             
         self.showing_original = is_original
         
-        # Cambiar el título según el PDF que se está mostrando
+        # Change the title according to the PDF that is being displayed
         if hasattr(self, 'title_label'):
             if is_original:
                 self.title_label.setText("Original PDF")
             else:
                 self.title_label.setText("Annotated PDF")
 
-        # Guardar la posición actual del scroll
+        # Save the current scroll position
         h_value = self.scroll_area.horizontalScrollBar().value()
         v_value = self.scroll_area.verticalScrollBar().value()
         
-        # Renderizar la página correspondiente
+        # Render the corresponding page
         self.render_current_page()
         
-        # Actualizar estado de los botones de navegación
+        # Update the status of the navigation buttons
         doc_to_check = self.original_document if is_original else self.document
         self.prev_button.setEnabled(self.current_page > 0)
         self.next_button.setEnabled(self.current_page < doc_to_check.page_count - 1)
         
-        # Restaurar la posición del scroll
+        # Restore the scroll position
         self.scroll_area.horizontalScrollBar().setValue(h_value)
         self.scroll_area.verticalScrollBar().setValue(v_value)
 
     def load_pdf(self, pdf_path, original_pdf_path=None, c_page = 0):
-        """Carga un archivo PDF en el visor."""
+        """Upload a PDF file to the viewer."""
         if pdf_path:
-            # Cerrar documento previo si existe
+            # Close previous document if it exists
             if self.document:
                 self.document.close()
 
-            # Abrir nuevo documento
+            # Open new document
             self.document = fitz.open(pdf_path)
             self.current_page = c_page
             
-            #Cargar PDF original
+            #Load original PDF
             if original_pdf_path:
                 if self.original_document:
                     self.original_document.close()
                 self.original_document = fitz.open(original_pdf_path)
 
-            # Actualizar interfaz
+            # Update interface
             self.update_page_info()
             self.render_current_page()
             
-            # Habilitar/deshabilitar botones
+            # Enable/disable buttons
             self.prev_button.setEnabled(False)
             self.next_button.setEnabled(self.document.page_count > 1 )
 
-    #Añade un método para recargar el documento (útil después de una rotación):
+    # Add a method to reload the document (useful after a rotation):
     def reload_document(self):
         """
-        Recarga el documento actual manteniendo la página actual.
-        Útil después de realizar modificaciones como rotaciones.
+        Reload the current document while keeping the current page. 
+        Useful after making changes such as rotations.
         """
-        print("Entrando a reload document")
         if not self.document:
             return
         
-        # Guardar la página actual
+        # Save the current page
         current_page = self.current_page
         
-        # Cerrar el documento
+        # Close the document
         self.document.close()
 
-        # Reabrir el documento
+        # Reopen the document
         self.document = fitz.open(self)
 
-        # Asegurarse de que la página actual sea válida
+        # Make sure that the current page is valid
         self.current_page = min(current_page, len(self.document) - 1)
         
-        # Actualizar la visualización
+        # Update view
         self.update_display()
         
-        # Actualizar información de la página si es necesario
+        # Update the page information if necessary
         self.update_page_info()
 
     def has_changes_list(self):
-        """Verifica si este visor tiene lista de cambios"""
+        """Check if this viewer has a list of changes."""
         return self.changes_list_widget is not None
     
     def navigate_to_change(self, page_num, change):
-        """Navega a un cambio específico cuando se selecciona de la lista"""
-        #print("change:", change, "--------------------->navigating to change")
+        """Navigate to a specific change when selected from the list"""
 
-        # Eliminar solo el círculo rojo anterior
+        # Remove only the previous red circle
         if self.active_circle_annot:
             try:
                 page_of_annot = self.document[self.current_page]
@@ -1097,19 +1089,19 @@ class PDFViewer(QWidget):
                 print("Error deleting red circle:", e)
             self.active_circle_annot = None
 
-        # Navegar a página si es necesario
+        # Navigate to page if necessary
         if self.current_page != page_num:
             self.current_page = page_num
             self.update_page_info()
             self.prev_button.setEnabled(self.current_page > 0)
             self.next_button.setEnabled(self.current_page < self.document.page_count - 1)
 
-        # Zoom y render
+        # Zoom and render
         self.zoom_factor = 2.0
         self.render_current_page()
         self.scroll_to_change(change)
 
-        # Agregar nuevo círculo rojo
+        # Add new red circle
         if self.document:
             page = self.document.load_page(page_num)
             scale_factor = 72 / self.dpi
@@ -1121,7 +1113,7 @@ class PDFViewer(QWidget):
                 (x_pdf - radius_pdf, y_pdf - radius_pdf, x_pdf + radius_pdf, y_pdf + radius_pdf)
             )
             circle_annot.set_border(width=2)
-            circle_annot.set_colors(stroke=(1, 0, 0), fill=None)  # solo contorno rojo
+            circle_annot.set_colors(stroke=(1, 0, 0), fill=None)  # only red outline
             circle_annot.set_opacity(1.0)
             circle_annot.set_flags(0)
 
@@ -1131,24 +1123,24 @@ class PDFViewer(QWidget):
     
     def scroll_to_change(self, change):
 
-        dpi_scale = self.dpi / 72.0  # Escala por DPI (72 es el valor base)
+        dpi_scale = self.dpi / 72.0  # Scale by DPI (72 is the base value)
         zoom_scale = self.zoom_factor
         total_scale = dpi_scale / zoom_scale
 
-        """Desplaza la vista para centrar el cambio seleccionado"""
+        """move the view to center the selected change"""
         if not self.document:
             return
             
-        # Obtener dimensiones del pixmap actual
+        # Get dimensions of the current pixmap
         if self.page_label.pixmap() is None:
-            print("Error: No hay pixmap en page_label")
+            print("Error: No pixmap in page_label")
             return
 
-        # Calcular la posición del cambio en el pixmap con el zoom actual
+        # Calculate the position of the change in the pixmap with the current zoom
         change_x = change['x']
         change_y = change['y']
         
-        #calcular scroll
+        #Compute scroll
         scroll_x = (change_x / self.page_width)
         scroll_y = (change_y / self.page_height)
 
@@ -1156,53 +1148,52 @@ class PDFViewer(QWidget):
         h_scroll = self.scroll_area.horizontalScrollBar().width() + self.scroll_area.horizontalScrollBar().maximum()
         v_scroll = self.scroll_area.verticalScrollBar().height() + self.scroll_area.verticalScrollBar().maximum()
 
-        # Ajustar el scroll para centrar el cambio
+        # Adjust the scroll to center the change
         h_value = max(0, int(h_scroll*scroll_x-self.width()/2))
         v_value = max(0, int(v_scroll*scroll_y-self.height()/2))
 
-        # Limitar los valores de scroll a los máximos permitidos
+        # Limit the scroll values to the allowed maximums
         h_value = min(h_value, self.scroll_area.horizontalScrollBar().maximum())
         v_value = min(v_value, self.scroll_area.verticalScrollBar().maximum())
 
-        # Establecer los valores de scroll
+        # Set the scroll values
         self.scroll_area.horizontalScrollBar().setValue(h_value)
         self.scroll_area.verticalScrollBar().setValue(v_value)
 
     def label_mouse_press_event(self, event):
-        """Maneja los clics en el label del PDF"""
+        """Manage the clicks on the PDF label"""
         pos = event.pos()
         print("Label Press event")
-        print(f"Click en QLabel (sin desplazamiento): {pos}")
+        print(f"Click on QLabel (without displacement)): {pos}")
 
         if event.button() == Qt.LeftButton and self.drag_mode:
             self.dragging = True
             self.last_drag_pos = event.globalPos()
             self.page_label.setCursor(Qt.ClosedHandCursor)
 
-        # Si es botón izquierdo y estamos en PDF anotado, iniciar subrayado
+        # If it is the left button and we are in annotated PDF, start highlighting.
         if event.button() == Qt.LeftButton and not self.showing_original and self.document and not self.drag_mode:
-            print("Iniciando modo subrayado")
+            print("Starting underline mode")
             self.highlighting = True
             
-            # Convertir coordenadas a coordenadas del PDF
+            # Convert coordinates to PDF coordinates
             page = self.document[self.current_page]
             
-            # Guardar la posición inicial en coordenadas de píxeles para el visual feedback
+            # Save the initial position in pixel coordinates for visual feedback
             self.highlight_start_pixels = (pos.x(), pos.y())
             
-            # Convertir a coordenadas del PDF
-            # Nota: necesitamos ajustar por el desplazamiento del scroll
-            adjusted_x = pos.x() #+ self.scroll_area.horizontalScrollBar().value()
-            adjusted_y = pos.y() #+ self.scroll_area.verticalScrollBar().value()
+            # Convert to PDF coordinates
+            adjusted_x = pos.x() 
+            adjusted_y = pos.y() 
             
-            # Guardar la posición exacta en coordenadas de PDF
+            # Save the exact position in PDF coordinates
             x, y = adjusted_x, adjusted_y
             self.highlight_start_pdf = (x, y)
             
-            print(f"Inicio de subrayado en píxeles: {self.highlight_start_pixels}")
-            print(f"Inicio de subrayado en coords PDF: {self.highlight_start_pdf}")
+            print(f"Start of pixel highlighting: {self.highlight_start_pixels}")
+            print(f"Start of highlighting in PDF coords: {self.highlight_start_pdf}")
             
-            # Iniciar rubber band para feedback visual
+            # Start rubber band for visual feedback
             if not hasattr(self, 'highlight_overlay'):
                 self.highlight_overlay = QRubberBand(QRubberBand.Rectangle, self.page_label)
             
@@ -1219,43 +1210,41 @@ class PDFViewer(QWidget):
             self.circle_clicked.emit(page_num, clicked_circle, new_state)
 
     def set_clicks_enabled(self, enabled):
-        #habilita o desabilita la deteccion de clicks en circulos
+        #enables or disables click detection on circles
         self.clicks_enabled = enabled
     
-    # Actualizar la visualización 
-    # después de una rotación:
-
+    # Update the display
     def update_display(self):
         """
-        Actualiza la visualización del PDF después de realizar modificaciones como rotaciones.
+        Update the PDF view after making modifications such as rotations.
         """
         if not self.document or self.current_page >= len(self.document):
             return
         
-        # Obtener la página actual
+        # Get the current page
         page = self.document[self.current_page]
         
-        # Renderizar la página nuevamente
+        # Render the page again
         pix = page.get_pixmap(matrix=self.matrix)
         
-        # Convertir a QImage y actualizar el QLabel
+        # Convert to QImage and update the QLabel
         img = QImage(pix.samples, pix.width, pix.height, pix.stride, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(img)
         
-        # Asumiendo que tienes un QLabel llamado image_label
+        # Assuming you have a QLabel called image_label
         if hasattr(self, 'image_label'):
             self.page_label.setPixmap(pixmap)
         
-        # Actualizar información de la página en la UI si es necesario
+        # Update page information in the UI if necessary
         self.update_page_info()
 
     def update_page_info(self):
-        """Actualiza la información de página actual."""
-        print("Ejecutando update_page_info")
+        """Update the information on the current page."""
+        print("Executing update_page_info")
         if self.document:
             self.page_info.setText(f"Page {self.current_page + 1} of {self.document.page_count}")
             
-            # Actualizar la lista de cambios para la página actual (solo si existe)
+            # Update the change log for the current page (only if it exists)
             if self.has_changes_list() and hasattr(self, 'formatted_circles_by_page'):
                 if self.current_page in self.formatted_circles_by_page:
                     changes = self.formatted_circles_by_page[self.current_page]
@@ -1264,29 +1253,29 @@ class PDFViewer(QWidget):
                     self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
     
     def render_current_page(self):
-        """Renderiza la página actual del PDF."""
+        """Render the current page of the PDF."""
         if not self.document:
-            print("Error: No hay documento principal para renderizar")
+            print("Error: There is no main document to render.")
             return
         
         # Determinar qué documento renderizar
         doc_to_render = self.original_document if self.showing_original else self.document
         
-        # Verificar que el documento a renderizar existe
+        # Verify that the document to be rendered exists
         if not doc_to_render:
             print("Error: No hay documento disponible para renderizar")
             return
         
-        print(f"Renderizando página {self.current_page} de documento: {doc_to_render}")
+        print(f"Rendering page {self.current_page} from document: {doc_to_render}")
         
-        # Obtener página actual
+        # Obtain current page
         page = doc_to_render[self.current_page]
         
-        # Aplicar zoom
+        # Apply zoom
         matrix = fitz.Matrix(self.zoom_factor, self.zoom_factor)
         pix = page.get_pixmap(matrix=matrix)
         
-        print(f"Pixmap creado: {pix.width}x{pix.height}")
+        print(f"Pixmap created: {pix.width}x{pix.height}")
         
         # Convertir a QImage/QPixmap
         img_data = QByteArray(pix.samples)
@@ -1295,42 +1284,41 @@ class PDFViewer(QWidget):
         
         print(f"QPixmap creado: {pixmap.width()}x{pixmap.height()}")
         
-        # Mostrar en el label
+        # Show on the label
         self.page_label.setPixmap(pixmap)
         self.page_label.resize(pixmap.size())
 
     def modify_annotations(self, page_num, clicked_circle, is_checked):
-        print(f"modify_annotations llamado - Página: {page_num}, Círculo: {clicked_circle}, Checked: {is_checked}")
+        print(f"modify_annotations called - Página: {page_num}, Circle: {clicked_circle}, Checked: {is_checked}")
     
         if not hasattr(self, 'formatted_circles_by_page') or page_num not in self.formatted_circles_by_page:
-            print("No hay círculos formateados para esta página")
+            print("There are no formatted circles for this page.")
             return []
 
         updated_annotations = []
 
         for circle in self.formatted_circles_by_page[page_num]:
-            # Comparar si el círculo actual es el que fue clicado
-            # Es mejor comparar coordenadas específicas en lugar del objeto completo
+            # Compare if the current circle is the one that was clicked.
             if (circle['x'] == clicked_circle['x'] and 
                 circle['y'] == clicked_circle['y'] and 
                 circle['radius'] == clicked_circle['radius']):
                 
-                # Modificar el círculo
+                # Modify the circle
                 modified_circle = circle.copy()
                 modified_circle["selected"] = is_checked
                 updated_annotations.append(modified_circle)
-                print(f"Círculo en página {page_num} modificado - Selected: {is_checked}")
+                print(f"Circle in page {page_num} modified - Selected: {is_checked}")
             else:
                 updated_annotations.append(circle)
 
-        # Guardar los cambios en la estructura de datos
+        # Save the changes to the data structure
         self.formatted_circles_by_page[page_num] = updated_annotations
         self.changes_list_widget.formatted_circles_by_page[page_num] = updated_annotations
         
-        # Actualizar la visualización después de la modificación
+        # Update the display after modification
         self.reload_page()
         
-        # Actualizar la lista de cambios para reflejar el nuevo estado
+        # Update the change log to reflect the new status
         if self.changes_list_widget:
             self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
             
@@ -1338,44 +1326,42 @@ class PDFViewer(QWidget):
 
     def detect_circle_click(self, pos):
         if self.current_page not in self.formatted_circles_by_page:
-            print("No hay círculos en esta página.")
+            print("There are no circles on this page.")
             return None, None
 
-        dpi_scale = self.dpi / 72.0  # Escala por DPI (72 es el valor base)
+        dpi_scale = self.dpi / 72.0  # Scale by DPI (72 is the base value)
         zoom_scale = self.zoom_factor
         total_scale = dpi_scale / zoom_scale
 
         for circle in self.formatted_circles_by_page[self.current_page]:
             scaled_x = pos.x() * total_scale
             scaled_y = pos.y() * total_scale
-            #print("circulo en x", circle['x']," - circulo en y", circle['y'])
-            #print("Scaled x", scaled_x," - Scaled y", scaled_y)
 
             scaled_radius = circle['radius']
 
-            # Calcular distancia real
+            # Calculate real distance
             distance = sqrt((scaled_x - circle['x'])**2 + (scaled_y - circle['y'])**2)
 
             if distance <= scaled_radius:
-                print("¡Click dentro del círculo!",circle)
+                print("¡Click inside the circle!",circle)
                 return self.current_page, circle
             
-        print(f"Click en: {pos.x()}, {pos.y()}")
+        print(f"Click on: {pos.x()}, {pos.y()}")
         
-        print("No se hizo clic en ningún círculo.")
+        print("No click was made on any circle")
         return None, None
 
     def set_circles(self, circles_by_page, page_width, page_height, json_loaded = False):
         self.page_width = page_width
         self.page_height = page_height
 
-        """Establece los círculos detectados por página."""
+        """Set the circles detected per page."""
         self.circles_by_page = circles_by_page
         self.formatted_circles_by_page = {}
 
-        if json_loaded: #cuando se cargan cambios del json
+        if json_loaded: #When changes to the json are loaded
             for page, circles in circles_by_page.items():
-                # Primero formatear todos los círculos
+                # First format all the circles
                 formatted_circles = []
                 for circle in circles:
                     formatted_circles.append({
@@ -1384,11 +1370,11 @@ class PDFViewer(QWidget):
                         "radius": circle['radius'],
                         "selected": ['selected'],
                     })
-                # Filtrar círculos usando el método 1 (filtrado por contenimiento completo)
+                # Filter circles using method 1 (complete containment filtering)
                 filtered_circles = self.filter_contained_circles(formatted_circles)
                 self.formatted_circles_by_page[page] = filtered_circles
 
-            # Actualizar la lista de cambios si estamos en una página con cambios y si existe la lista
+            # Update the change log if we are on a page with changes and if the list exists.
             if self.has_changes_list() and self.current_page in self.formatted_circles_by_page:
                 self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
 
@@ -1396,9 +1382,9 @@ class PDFViewer(QWidget):
             self.update_page_info()
             return self.formatted_circles_by_page
         
-        else: #cuando se hace una comparacion
+        else: #When making a comparison
             for page, circles in circles_by_page.items():
-                # Primero formatear todos los círculos
+                # First format all the circles
                 formatted_circles = []
                 for circle in circles:
                     formatted_circles.append({
@@ -1408,15 +1394,13 @@ class PDFViewer(QWidget):
                         "selected": True,
                     })
             
-                # Filtrar círculos usando el método 1 (filtrado por contenimiento completo)
+                # Filter circles using method 1 (complete containment filtering)
                 filtered_circles = self.filter_contained_circles(formatted_circles)
                 self.formatted_circles_by_page[page] = filtered_circles
         
-            # Actualizar la lista de cambios si estamos en una página con cambios y si existe la lista
+            # Update the change log if we are on a page with changes and if the list exists.
             if self.has_changes_list() and self.current_page in self.formatted_circles_by_page:
-                print("Atributo formatted_circles_by_page antes de update_changes_list",self.formatted_circles_by_page)
                 self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
-                print("Atributo formatted_circles_by_page despues de update_changes_list",self.formatted_circles_by_page)
 
             self.render_current_page()
             self.update_page_info()
@@ -1424,87 +1408,85 @@ class PDFViewer(QWidget):
         
     def filter_contained_circles(self, circles):
         """
-        Filtra los círculos, descartando aquellos que están contenidos en otros círculos más grandes.
-        Devuelve solo los círculos "contenedores" más grandes.
+        Filter the circles, discarding those that are contained within larger circles. 
+        Return only the larger 'containing' circles.
         """
         if not circles:
             return []
         
-        # Crear una copia para no modificar la lista original
+        # Create a copy to avoid modifying the original list.
         result = circles.copy()
         circles_to_remove = set()
         
-        # Comparar cada par de círculos
+        # Compare each pair of circles
         for i, circle1 in enumerate(circles):
             for j, circle2 in enumerate(circles):
                 if i == j:
-                    continue  # No comparar un círculo consigo mismo
+                    continue  # Do not compare a circle to itself
                 
-                # Calcular la distancia entre los centros
+                # Calculate the distance between the centers
                 distance = sqrt((circle1['x'] - circle2['x'])**2 + (circle1['y'] - circle2['y'])**2)
                 
-                # Si la distancia es menor que la diferencia de radios, un círculo está dentro del otro
+                #Detect if one circle is inside the other.
                 if distance <= abs(circle1['radius'] - circle2['radius']):
-                    # Determinar cuál es el círculo más pequeño (contenido)
+                    # Determine which is the smallest circle (content)
                     if circle1['radius'] < circle2['radius']:
-                        circles_to_remove.add(i)  # El círculo 1 está contenido en el 2
+                        circles_to_remove.add(i)  # Circle 1 is contained in circle 2.
                     elif circle2['radius'] < circle1['radius']:
-                        circles_to_remove.add(j)  # El círculo 2 está contenido en el 1
+                        circles_to_remove.add(j)  # Circle 2 is contained in Circle 1.
         
-        # Crear una nueva lista sin los círculos contenidos
+        # Create a new list without the contained circles
         filtered_result = [circle for i, circle in enumerate(result) if i not in circles_to_remove]
         
-        print(f"Se filtraron {len(circles) - len(filtered_result)} círculos contenidos.")
+        print(f"Filtering {len(circles) - len(filtered_result)} overlaped circles.")
         return filtered_result
     
     def reload_page(self):
-        """Recarga la página actual (útil cuando cambian las anotaciones)."""
+        """Reload the current page (useful when the notes change)."""
         self.render_current_page()
 
     def next_page(self):
-        """Navega a la siguiente página."""
+        """Navigate to the next page."""
         if self.document and self.current_page < self.document.page_count - 1:
             self.current_page += 1
             self.render_current_page()
             self.update_page_info()
             
-            # Actualizar estado de los botones
+            # Update status of the buttons
             self.prev_button.setEnabled(True)
-            print("Prev button setted true")
-            print("Current page:", self.current_page)
             self.next_button.setEnabled(self.current_page < self.document.page_count - 1)
     
     def prev_page(self):
-        """Navega a la página anterior."""
+        """Navigate to the previous page."""
         if self.document and self.current_page > 0:
             self.current_page -= 1
             self.render_current_page()
             self.update_page_info()
             
-            # Actualizar estado de los botones
+            # Update status of the buttons
             self.prev_button.setEnabled(self.current_page > 0)
             self.next_button.setEnabled(True)
     
     def zoom_in(self):
-        """Aumenta el zoom."""
+        """Increase zoom."""
         self.zoom_factor *= 1.25
         self.render_current_page()
     
     def zoom_out(self):
-        """Reduce el zoom."""
+        """Decrease zoom."""
         if self.zoom_factor > 1.0:
             self.zoom_factor /= 1.25
             self.render_current_page()
     
     def zoom_reset(self):
-        """Restablece el zoom al 100%."""
+        """Reset the zoom to 100%."""
         self.zoom_factor = 1.0
         self.render_current_page()
 
     def apply_shadow(self, widget, blur=15, x_offset=0, y_offset=2, alpha=40):
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(blur)  # Difuminado de la sombra
-        shadow.setXOffset(x_offset)  # Sombra horizontal
-        shadow.setYOffset(y_offset)  # Sombra vertical
-        shadow.setColor(QColor(0, 0, 0, alpha))  # Color negro con transparencia
+        shadow.setBlurRadius(blur)  # Blurring of the shadow
+        shadow.setXOffset(x_offset)  # Horizontal shadow
+        shadow.setYOffset(y_offset)  # Vertical shadow
+        shadow.setColor(QColor(0, 0, 0, alpha))  # Black color with transparency
         widget.setGraphicsEffect(shadow)

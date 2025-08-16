@@ -11,17 +11,17 @@ class PDFAnnotator:
     
     def add_circle_annotations(self, input_pdf, circles_by_page, output_pdf=None, dpi=300):
         """
-        Añade círculos como anotaciones al PDF.
+        Adds circles as annotations to the PDF.
         """
         if output_pdf is None:
             base_name = os.path.basename(input_pdf)
             output_pdf = os.path.join(self.output_dir, f"annotated_{base_name}")
 
-        # Asegúrate de que output_pdf no sea igual a input_pdf
+        # Ensure that output_pdf is not the same as input_pdf
         if os.path.abspath(output_pdf) == os.path.abspath(input_pdf):
             base_name = os.path.basename(input_pdf)
             output_pdf = os.path.join(self.output_dir, f"annotated_{base_name}")
-            print(f"Guardando anotaciones en un nuevo archivo: {output_pdf}")
+            print(f"Saving annotations to a new file: {output_pdf}")
 
         doc = fitz.open(input_pdf)
         scale_factor = 72 / dpi
@@ -45,36 +45,30 @@ class PDFAnnotator:
         doc.close()
         return output_pdf
 
-    '''            
-    def save_circles_to_json(self, circles_by_page, output_path):
-        """Guarda la información de los círculos en un archivo JSON."""
-        with open(output_path, 'w') as f:
-            json.dump(circles_by_page, f, indent=2)
-    '''
     def save_changes_to_json(self, original_pdf, formatted_circles_by_page, 
                            highlights_by_page=None, rotations_by_page=None, 
                            watermarks=None, output_path=None, dpi=300):
         print("Changes", formatted_circles_by_page)
         """
-        Guarda los cambios aplicados a un PDF en un archivo JSON.
+        Saves the changes applied to a PDF to a JSON file.
         
         Args:
-            original_pdf: Ruta al PDF original
-            formatted_circles_by_page: Diccionario de cambios por página
-            highlights_by_page: Diccionario de highlights por página
-            rotations_by_page: Diccionario de rotaciones por página
-            watermarks: Lista de marcas de agua aplicadas
-            output_path: Ruta donde guardar el archivo JSON
-            dpi: DPI usados para la conversión a imagen
+            original_pdf: Path to the original PDF
+            formatted_circles_by_page: Dictionary of changes per page
+            highlights_by_page: Dictionary of highlights per page
+            rotations_by_page: Dictionary of rotations per page
+            watermarks: List of applied watermarks
+            output_path: Path to save the JSON file
+            dpi: DPI used for image conversion
         
         Returns:
-            Ruta al archivo JSON guardado
+            Path to the saved JSON file
         """
         if not output_path:
             base_name = os.path.basename(original_pdf)
             output_path = os.path.join(self.output_dir, f"{os.path.splitext(base_name)[0]}_changes.json")
         
-        # Inicializar estructura del JSON
+        # Initialize JSON structure
         json_data = {
             "metadata": {
                 "original_pdf": original_pdf,
@@ -86,9 +80,9 @@ class PDFAnnotator:
             "watermarks": watermarks or []
         }
         
-        # Agregar información de cambios por página
+        # Add page changes information
         for page_num, changes in formatted_circles_by_page.items():
-            # Convertir a string ya que las claves JSON deben ser strings
+            # Convert to string since JSON keys must be strings
             page_key = str(page_num)
             
             if page_key not in json_data["pages"]:
@@ -98,19 +92,16 @@ class PDFAnnotator:
                     "rotation": 0
                 }
             
-            # Agregar cambios a la página
+            # Add changes to the page
             for change in changes:
                 change_data = {
                     "x": change[0],
                     "y": change[1],
                     "radius": change[2],
-                    #"change_type": change.get("change_type", "unknown"),
-                    #"description": change.get("description", f"Cambio {len(json_data['pages'][page_key]['changes']) + 1}"),
-                    #"selected": change.get("selected", True)
                 }
                 json_data["pages"][page_key]["changes"].append(change_data)
         
-        # Agregar highlights por página si están disponibles
+        # Add highlights per page if available
         if highlights_by_page:
             for page_num, highlights in highlights_by_page.items():
                 page_key = str(page_num)
@@ -124,7 +115,7 @@ class PDFAnnotator:
                 
                 json_data["pages"][page_key]["highlights"] = highlights
         
-        # Agregar rotaciones por página si están disponibles
+        # Add rotations per page if available
         if rotations_by_page:
             for page_num, rotation in rotations_by_page.items():
                 page_key = str(page_num)
@@ -138,7 +129,7 @@ class PDFAnnotator:
                 
                 json_data["pages"][page_key]["rotation"] = rotation
         
-        # Guardar el JSON
+        # Save JSON file
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, indent=2)
         

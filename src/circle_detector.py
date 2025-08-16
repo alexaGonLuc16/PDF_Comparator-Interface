@@ -6,119 +6,115 @@ import miniball
 class CircleDetector:
     def __init__(self, eps=10, min_samples=5):
         """
-        Args:
-            eps: Distancia máxima para considerar que dos puntos están en el mismo cluster
-            min_samples: Número mínimo de puntos para formar un cluster
+        Args: 
+            eps: Maximum distance to consider that two points are in the same cluster 
+            min_samples: Minimum number of points to form a cluster
         """
         self.eps = eps
         self.min_samples = min_samples
     
     def group_points_into_circles(self, points):
         """
-        Agrupa puntos en círculos usando DBSCAN para clustering y Miniball para encontrar
-        el círculo mínimo que contiene cada grupo.
-        
+        Group points into circles using DBSCAN for clustering and Miniball to find the minimum circle that contains each group.
         Args:
-            points: Lista de tuplas (x, y) con las coordenadas de los puntos
-        
-        Returns:
-            circles: Lista de tuplas (x, y, radius) que representan los círculos
+            points: List of tuples (x, y) with the coordinates of the points
+            Returns:circles: List of tuples (x, y, radius) that represent the circles.
         """
         
-        # Validar que todos los puntos son tuplas/listas de 2 elementos
+        # Validate that all points are tuples/lists of 2 elements
         valid_points = [p for p in points if isinstance(p, (list, tuple)) and len(p) == 2]
         
-        # Verificar si hay puntos válidos
+        # Check if there are valid points
         if not valid_points:
             return []
         
-        # Convertir lista de puntos a array numpy
+        # Convert list of points to numpy array
         points_array = np.array(valid_points)
         
-        # Si no hay suficientes puntos, devolver círculos vacíos
+        # If there are not enough points, return empty circles.
         if len(points_array) < self.min_samples:
             if len(points_array) > 0:
-                # Si hay pocos puntos, crear un único círculo que los contenga todos
+                # If there are few points, create a single circle that contains them all.
                 center, squared_radius = miniball.get_bounding_ball(cluster_points)
                 radius = np.sqrt(squared_radius)
                 return [(center[0], center[1], radius)]
             return []
         
-        # Aplicar DBSCAN para agrupar los puntos
+        # Apply DBSCAN to group the points
         clustering = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(points_array)
         labels = clustering.labels_
         
-        # Encontrar círculos mínimos para cada cluster
+        # Find minimum circles for each cluster
         circles = []
         unique_labels = set(labels)
         
         for label in unique_labels:
-            # Ignorar el ruido (etiqueta -1)
+            # Ignore the noise (label -1)
             if label == -1:
                 continue
                 
-            # Obtener puntos de este cluster
+            # Get points from this cluster
             cluster_points = points_array[labels == label]
             
-            # Calcular el círculo mínimo para este cluster
+            # Calculate the minimum circle for this cluster
 
             try:
                 center, squared_radius = miniball.get_bounding_ball(cluster_points)
                 radius = np.sqrt(squared_radius)
 
-                # Añadir un poco de margen al radio (5%)
+                # Add a little margin to the radius (5%)
                 radius *= 1.05
                 circles.append((center[0], center[1], radius))
 
             except Exception as e:
                 print(f"Error al calcular el circulo: {e}")
 
-            #Si falla crea un circulo generico pequeno al rededor del punto promedio
+            #If it fails, create a small generic circle around the average point.
 
                 if len(cluster_points) > 0:
                     mean_point = np.mean(cluster_points, axis = 0)
-                    circles.append((mean_point[0],mean_point[1],5))#radio pequeno de fallback
+                    circles.append((mean_point[0],mean_point[1],5))
 
         return circles
     
     def merge_overlapping_circles(self, circles, overlap_threshold=0.7):
         """
-        Fusiona círculos que se solapan significativamente.
-        
+        Merge circles that significantly overlap.
+
         Args:
-            circles: Lista de tuplas (x, y, radius)
-            overlap_threshold: Umbral de solapamiento para fusionar círculos
-        
+            circles: List of tuples (x, y, radius)  
+            overlap_threshold: Overlap threshold for merging circles
+            
         Returns:
-            merged_circles: Lista de círculos fusionados
+            merged_circles: List of merged circles
         """
         if not circles:
             return []
             
-        # Ordenar círculos por radio (de mayor a menor)
+        # Sort circles by radius (from largest to smallest)
         sorted_circles = sorted(circles, key=lambda x: x[2], reverse=True)
         merged_circles = []
         
         while sorted_circles:
-            # Tomar el círculo más grande
+            # Take the largest circle
             current = sorted_circles.pop(0)
             merged_circles.append(current)
             
-            # Filtrar círculos que no se solapan significativamente con el actual
+            # Filter circles that do not significantly overlap with the current one.
             remaining_circles = []
             for circle in sorted_circles:
-                # Calcular distancia entre centros
+                # Calculate distance between centers
                 distance = np.sqrt((circle[0] - current[0])**2 + (circle[1] - current[1])**2)
                 
-                # Si la distancia es mayor que la suma de radios, no hay solapamiento
+                # If the distance is greater than the sum of the radii, there is no overlap.
                 if distance > current[2] + circle[2]:
                     remaining_circles.append(circle)
                     continue
                     
-                # Calcular solapamiento
+                # Calculate overlap
                 overlap_ratio = min(circle[2], current[2]) / max(circle[2], current[2])
                 
-                # Si el solapamiento es menor que el umbral, mantener el círculo
+                # If the overlap is less than the threshold, keep the circle.
                 if overlap_ratio < overlap_threshold:
                     remaining_circles.append(circle)
             

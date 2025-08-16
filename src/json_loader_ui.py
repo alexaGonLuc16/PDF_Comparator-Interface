@@ -1,4 +1,4 @@
-# Implementación de la sección de carga de JSON en la interfaz de usuario
+# Implementation of the JSON loading section in the user interface
 
 from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                            QFileDialog, QFrame, QMessageBox, QDialog, QSplitter,
@@ -10,10 +10,10 @@ from src.json_loader import PDFJsonLoader
 from src.json_saver import PDFJsonSaver
 
 class JsonLoaderUI(QWidget):
-    add_changes_list = pyqtSignal(str, dict, bool)  # ruta de archivo, diccionario de cambios
-    update_changes_list_signal = pyqtSignal(dict)  # diccionario de cambios
+    add_changes_list = pyqtSignal(str, dict, bool)  # file path, dictionary of changes
+    update_changes_list_signal = pyqtSignal(dict)  # dictionary of changes
     """
-    Widget para cargar cambios desde un archivo JSON.
+    Widget to load changes from a JSON file.
     """
     def __init__(self, pdf_viewer, parent=None):
         super(JsonLoaderUI, self).__init__(parent)
@@ -25,19 +25,19 @@ class JsonLoaderUI(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
         
-        # Título
+        # Title
         title_label = QLabel("Load Changes")
         title_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
         
-        # Separador
+        # Separator
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
         separator.setFrameShadow(QFrame.Sunken)
         layout.addWidget(separator)
         
-        # Sección de carga
+        # Load section
         load_section_label = QLabel("Load changes from a JSON")
         load_section_label.setStyleSheet("font-size: 12pt; font-weight: bold;")
         layout.addWidget(load_section_label)
@@ -60,17 +60,17 @@ class JsonLoaderUI(QWidget):
         
         layout.addLayout(load_layout)
         
-        # Estado de carga
+        # Load status
         self.load_status_label = QLabel("No files loaded")
         layout.addWidget(self.load_status_label)
         
-        # Separador
+        # Separator
         separator2 = QFrame()
         separator2.setFrameShape(QFrame.HLine)
         separator2.setFrameShadow(QFrame.Sunken)
         layout.addWidget(separator2)
         
-        # Sección de guardado
+        # Save section
         save_section_label = QLabel("Save changes to JSON")
         save_section_label.setStyleSheet("font-size: 12pt; font-weight: bold;")
         layout.addWidget(save_section_label)
@@ -84,25 +84,25 @@ class JsonLoaderUI(QWidget):
         
         layout.addLayout(save_layout)
         
-        # Información
+        # Information
         info_label = QLabel(
-            "Esta funcionalidad permite guardar y cargar cambios detectados en PDFs "
-            "sin necesidad de reprocesarlos nuevamente."
+            "This feature allows you to save and load changes detected in PDFs "
+            "without needing to reprocess them again."
         )
         info_label.setWordWrap(True)
         info_label.setStyleSheet("font-style: italic;")
         layout.addWidget(info_label)
         
-        # Variables para seguimiento
+        # Variables for tracking
         self.json_path = None
         self.pdf_path = None
     
     def load_json_file(self):
-        """Carga un archivo JSON con información de cambios."""
+        """Loads a JSON file with change information."""
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar Archivo JSON", "",
-            "Archivos JSON (*.json);;Todos los archivos (*)", 
+            self, "Select JSON File", "",
+            "JSON Files (.json);;All Files ()", 
             options=options
         )
         
@@ -116,18 +116,18 @@ class JsonLoaderUI(QWidget):
                 if self.pdf_path:
                     self.apply_changes_button.setEnabled(True)
                 
-                QMessageBox.information(self, "JSON Cargado", 
-                                      f"Archivo JSON cargado correctamente: {os.path.basename(file_path)}")
+                QMessageBox.information(self, "JSON Loaded", 
+                                      f"JSON file loaded successfully: {os.path.basename(file_path)}")
             else:
-                QMessageBox.warning(self, "Error de Carga", 
-                                  "No se pudo cargar el archivo JSON. Verifique que tenga el formato correcto.")
+                QMessageBox.warning(self, "Load Error", 
+                                  "The JSON file could not be loaded. Please verify it has the correct format.")
     
     def load_pdf_file(self):
-        """Carga un archivo PDF al que se aplicarán los cambios."""
+        """Loads a PDF file to apply changes to."""
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar Archivo PDF", "",
-            "Archivos PDF (*.pdf);;Todos los archivos (*)", 
+            self, "Select PDF File", "",
+            "PDF Files (.pdf);;All Files ()", 
             options=options
         )
         
@@ -135,93 +135,93 @@ class JsonLoaderUI(QWidget):
             self.pdf_path = file_path
             self.update_load_status()
             
-            # Habilitar botón de aplicar si también hay JSON cargado
+            # Enable "Apply Changes" button if a JSON is also loaded
             if self.json_path:
                 self.apply_changes_button.setEnabled(True)
             
-            QMessageBox.information(self, "PDF Cargado", 
-                                  f"Archivo PDF cargado correctamente: {os.path.basename(file_path)}")
+            QMessageBox.information(self, "PDF Loaded", 
+                                  f"PDF file loaded successfully: {os.path.basename(file_path)}")
     
     def apply_changes(self):
-        """Aplica los cambios del JSON al PDF y muestra el resultado."""
+        """Applies the changes from the JSON to the PDF and shows the result."""
         if not self.json_path or not self.pdf_path:
-            QMessageBox.warning(self, "Error", "Debe cargar tanto un archivo JSON como un PDF.")
+            QMessageBox.warning(self, "Error", "You must load both a JSON file and a PDF.")
             return
         
         try:
-            # Generar nombre de salida
+            # Generate output file name
             base_name = os.path.basename(self.pdf_path)
             output_path = f"loaded_{base_name}"
             
-            # Aplicar cambios
+            # Apply changes
             result_path = self.json_loader.apply_changes_to_pdf(self.pdf_path, output_path)
 
             if result_path != None:
-                # Extraer cambios para mostrar en el visor
+                # Extract changes to display in the viewer
                 changes_by_page = self.json_loader.extract_changes_by_page()
                 
-                # Convertir de formato de diccionario a formato de lista si es necesario
+                # Convert from dictionary format to list format if necessary
                 formatted_changes = {}
                 for page_num, changes in changes_by_page.items():
                     formatted_changes[page_num] = changes
                 
-                # Obtener dimensiones del PDF (hardcodeamos valores para el ejemplo)
-                # En una implementación real, deberías obtener esto del PDF
-                page_width = 612  # Ancho estándar de una página A4 en puntos
-                page_height = 792  # Alto estándar de una página A4 en puntos
+                # Get PDF dimensions (hardcoded for the example)
+                # In a real implementation, you should get this from the PDF
+                page_width = 612  # Standard width of an A4 page in points
+                page_height = 792  # Standard height of an A4 page in points
                 
-                # Cargar PDF en el visor
+                # Load PDF into the viewer
                 self.pdf_viewer.load_pdf(result_path)
                 
-                # Configurar círculos
+                # Configure circles
                 self.add_changes_list.emit(result_path, formatted_changes, True)
                 self.update_changes_list_signal.emit(formatted_changes)
 
-                #Agregar changes list widget a la ventana principal
-                QMessageBox.information(self, "Cambios Aplicados", 
-                                      "Los cambios han sido aplicados correctamente al PDF.")
+                # Add changes list widget to the main window
+                QMessageBox.information(self, "Changes Applied", 
+                                      "The changes have been successfully applied to the PDF.")
 
             else:
-                QMessageBox.warning(self, "Error", "No se pudieron aplicar los cambios al PDF.")
+                QMessageBox.warning(self, "Error", "The changes could not be applied to the PDF.")
         
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error al aplicar cambios: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Error applying changes: {str(e)}")
 
     def save_changes(self):
-        """Guarda los cambios actuales en un archivo JSON."""
+        """Saves the current changes to a JSON file."""
         if not hasattr(self.pdf_viewer, 'formatted_circles_by_page') or not self.pdf_viewer.formatted_circles_by_page:
-            QMessageBox.warning(self, "Error", "No hay cambios para guardar.")
+            QMessageBox.warning(self, "Error", "There are no changes to save.")
             return
         
         if not hasattr(self.pdf_viewer, 'file_path') or not self.pdf_viewer.file_path:
-            QMessageBox.warning(self, "Error", "No hay un PDF cargado.")
+            QMessageBox.warning(self, "Error", "No PDF is loaded.")
             return
         
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Guardar Cambios en JSON", "",
-            "Archivos JSON (*.json);;Todos los archivos (*)", 
+            self, "Save Changes to JSON", "",
+            "JSON Files (.json);;All Files ()", 
             options=options
         )
         
         if file_path:
             try:
-                # Extraer highlights si es posible
+                # Extract highlights if possible
                 highlights_by_page = None
                 if hasattr(self.pdf_viewer, 'document') and self.pdf_viewer.document:
                     highlights_by_page = self.json_saver.extract_highlights_from_pdf(
                         self.pdf_viewer.document, self.pdf_viewer.dpi)
                 
-                # Extraer rotaciones si es posible
+                # Extract rotations if possible
                 rotations_by_page = None
                 if hasattr(self.pdf_viewer, 'document') and self.pdf_viewer.document:
                     rotations_by_page = self.json_saver.extract_rotations_from_pdf(
                         self.pdf_viewer.document)
                 
-                # No tenemos información de marcas de agua, así que pasamos None
+                # No watermark information available, so pass None
                 watermarks = None
                 
-                # Guardar cambios
+                # Save changes
                 result_path = self.json_saver.save_changes_to_json(
                     self.pdf_viewer.file_path,
                     self.pdf_viewer.formatted_circles_by_page,
@@ -232,14 +232,14 @@ class JsonLoaderUI(QWidget):
                     self.pdf_viewer.dpi
                 )
                 
-                QMessageBox.information(self, "Cambios Guardados", 
-                                      f"Los cambios han sido guardados en: {result_path}")
+                QMessageBox.information(self, "Changes Saved", 
+                                      f"The changes have been saved to: {result_path}")
             
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error al guardar cambios: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Error saving changes: {str(e)}")
     
     def update_load_status(self):
-        """Actualiza la etiqueta de estado de carga."""
+        """Updates the load status label."""
         status = []
         
         if self.json_path:
@@ -249,6 +249,6 @@ class JsonLoaderUI(QWidget):
             status.append(f"PDF: {os.path.basename(self.pdf_path)}")
         
         if status:
-            self.load_status_label.setText("Archivos cargados: " + ", ".join(status))
+            self.load_status_label.setText("Loaded files: " + ", ".join(status))
         else:
-            self.load_status_label.setText("No hay archivos cargados")
+            self.load_status_label.setText("No files loaded")
